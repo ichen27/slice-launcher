@@ -1,6 +1,6 @@
 # Slice Launcher
 
-The public monorepo for Slice Consulting’s app launcher and future independently deployed apps. The launcher currently contains an empty catalog; internal data is not stored in this repository.
+The public monorepo for Slice Consulting’s app launcher and future independently deployed apps. The launcher currently contains an empty catalog and no sign-in. The public page currently contains no internal data or app links. In-app authentication must be added before private content.
 
 ## Workspace
 
@@ -34,6 +34,6 @@ Use `pnpm format` to apply the repository style. See [adding an app](docs/adding
 
 ## Changes
 
-Open a pull request into `main`. The `validate` job checks formatting, lint, types, tests, and a production build. Ivan reviews contributions from others; his own pull requests need no other approval. Ivan is currently the sole maintainer with write access. Production deployment is configured separately and stays disabled until Cloudflare Access and credentials are ready.
+Open a pull request into `main`. The `validate` job checks formatting, lint, types, tests, and a production build. Ivan reviews contributions from others; his own pull requests need no other approval. Ivan is currently the sole maintainer with write access. Production deployment is configured separately and stays disabled until the Cloudflare CI credential is ready.
 
 Licensed under MIT; copyright Slice Consulting.

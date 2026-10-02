@@ -1,5 +1,7 @@
 # Slice Launcher Foundation Implementation Plan
 
+> **2026-10-02 update:** Ivan chose a public launcher URL with authentication inside the app. Cloudflare Access steps below record the original plan and are superseded by [deployment.md](../../deployment.md). The current empty launcher has no sign-in or private data.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Create and deploy the public `slice-launcher` monorepo with an internal Cloudflare-hosted launcher and enforced GitHub pull-request checks.
