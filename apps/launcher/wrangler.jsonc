@@ -5,6 +5,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "slice-launcher",
+  "workers_dev": false,
+  "preview_urls": false,
   "compatibility_date": "2026-10-02",
   "main": "vinext/server/fetch-handler",
   "assets": {
