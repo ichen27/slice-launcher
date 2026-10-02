@@ -34,7 +34,7 @@ The foundation contains no production alumni records, confidential documents, de
 
 ## Contribution and release flow
 
-Pull requests run GitHub Actions jobs for formatting, lint, type checking, meaningful tests, and a production build. A `main` branch rule requires the relevant checks and at least one review before merge; direct pushes and force pushes are blocked, including for administrators where supported. Deployment runs only after an approved merge to `main`, with a narrowly scoped Cloudflare token stored as a GitHub secret. The deployment job builds, deploys the launcher, and checks that its health endpoint responds. Untrusted pull-request jobs receive no deployment secret.
+Pull requests run GitHub Actions jobs for formatting, lint, type checking, meaningful tests, and a production build. A `main` branch rule requires pull requests and the relevant checks; direct pushes and force pushes are blocked, including for administrators where supported. Ivan reviews contributions from others. His own pull requests need no other approval while he is the sole maintainer. If write access is granted to others, the review gate must be revisited so they cannot merge without his review. Deployment runs only after an approved merge to `main`, with a narrowly scoped Cloudflare token stored as a GitHub secret. The deployment job builds, deploys the launcher, and checks that its health endpoint responds. Untrusted pull-request jobs receive no deployment secret.
 
 ## Acceptance
 

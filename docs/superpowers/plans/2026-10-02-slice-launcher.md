@@ -90,11 +90,11 @@
 
 **Files:** Create `LICENSE` after copyright-holder confirmation; finalize `README.md`, CI workflow, and deployment configuration.
 
-**Interfaces:** Public `https://github.com/ichen27/slice-launcher`, required `validate` PR check, one approving review, no bypass or force push to `main`.
+**Interfaces:** Public `https://github.com/ichen27/slice-launcher`, required `validate` PR check, owner review for others’ contributions, no approval requirement on owner-authored pull requests, no bypass or force push to `main`.
 
 - [ ] **Step 1: Clear publication gates.** Confirm the MIT copyright holder and inspect the full Git history, staged files, and workflows for confidential data. Create `LICENSE` from the canonical MIT text with the confirmed holder.
 - [ ] **Step 2: Create and push.** Create the public GitHub repository from the SSD checkout, push the initial commit, and verify repository visibility and file contents via GitHub. Leave the older `slice-platform` repo untouched.
-- [ ] **Step 3: Protect `main`.** After the first green CI run, require pull requests, one approving review, the unique `validate` status check, no force pushes or deletions, and no admin bypass. Read back GitHub's applied settings.
+- [ ] **Step 3: Protect `main`.** After the first green CI run, require pull requests and the unique `validate` status check; leave the native approval count at zero while Ivan is the sole maintainer, no force pushes or deletions, and no admin bypass. Read back GitHub's applied settings.
 - [ ] **Step 4: Exercise the gate.** Open a temporary PR with a deliberate failing check and confirm GitHub blocks merge. Close it without merging. Verify the effective branch rule through GitHub's API.
 - [ ] **Step 5: Save repository context.** Register the confirmed SSD checkout in `project-registry.json` and update the Obsidian Slice project note with the public repository, owner, branch, and verified gate status.
 
@@ -107,5 +107,5 @@
 - [ ] **Step 1: Confirm production account and identities.** Select the approved Slice Cloudflare account, initial domain or Workers URL, and specific identities allowed into the launcher.
 - [ ] **Step 2: Establish the Worker and Access.** Deploy the public-safe empty launcher shell once to create the Worker. Immediately protect it with Access for the confirmed identities. Verify an unauthenticated request is denied or redirected and an authorized request succeeds.
 - [ ] **Step 3: Configure CD credentials.** Create narrowly scoped deploy and Access service tokens, store values in GitHub production environment secrets, and set `SLICE_LAUNCHER_DEPLOY_ENABLED=true`.
-- [ ] **Step 4: Verify automatic release.** Merge a passing reviewed PR. Confirm CI and deploy jobs pass, the protected `/api/health` smoke check returns HTTP 200 and `{ "status": "ok" }`, and the live app serves the merged commit.
+- [ ] **Step 4: Verify automatic release.** Merge a passing PR under the owner review policy. Confirm CI and deploy jobs pass, the protected `/api/health` smoke check returns HTTP 200 and `{ "status": "ok" }`, and the live app serves the merged commit.
 - [ ] **Step 5: Save deployment context.** Record the live URL, commit SHA, CI run, deployment ID, account ownership, Access policy, and any remaining limitations in the Obsidian Slice project note without storing secret values.

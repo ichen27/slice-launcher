@@ -7,6 +7,6 @@ New apps live in `apps/<app-name>` and deploy independently. They may import `@s
 3. Install dependencies from the root with `pnpm install`. Add app-specific packages with `pnpm --filter @slice/<app-name> add <package>`. For shared code, create a package under `packages/` and use `workspace:*`.
 4. Run `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` from the root.
 5. Add an entry to `apps/launcher/src/lib/apps.ts` with a stable ID, name, short description, and HTTPS production URL. Omit the URL until the app is ready; the tile will say “Coming soon.”
-6. Open a pull request. Include the app’s independent deployment and rollback instructions. Merge only after the `validate` check and required review pass.
+6. Open a pull request. Include the app’s independent deployment and rollback instructions. The `validate` check must pass. Ivan reviews contributions from others before he merges them; his own pull requests do not require another reviewer.
 
 Do not commit live data, database exports, credentials, API tokens, `.env` files, or `.dev.vars` files. See [data boundaries](data-boundary.md).

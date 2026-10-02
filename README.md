@@ -34,6 +34,6 @@ Use `pnpm format` to apply the repository style. See [adding an app](docs/adding
 
 ## Changes
 
-Open a pull request into `main`. The `validate` job checks formatting, lint, types, tests, and a production build. Production deployment is configured separately and stays disabled until Cloudflare Access and credentials are ready.
+Open a pull request into `main`. The `validate` job checks formatting, lint, types, tests, and a production build. Ivan reviews contributions from others; his own pull requests need no other approval. Ivan is currently the sole maintainer with write access. Production deployment is configured separately and stays disabled until Cloudflare Access and credentials are ready.
 
 Licensed under MIT; copyright Slice Consulting.
