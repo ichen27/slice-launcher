@@ -30,7 +30,7 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
-    "deploy": "vinext-cloudflare deploy --config dist/server/wrangler.json",
+    "deploy": "wrangler deploy --config dist/server/wrangler.json",
     "preview": "pnpm build && pnpm start --",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv ./worker-configuration.d.ts",
     "test": "vitest run --config vitest.config.ts",
