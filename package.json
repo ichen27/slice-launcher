@@ -9,10 +9,18 @@
   "scripts": {
     "dev": "pnpm --filter @slice/launcher dev",
     "build": "pnpm -r --if-present build",
-    "lint": "pnpm -r --if-present lint",
+    "lint": "eslint .",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
     "format:check": "prettier --check .",
     "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "prettier": "^3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "@slice/config": "workspace:*"
   }
 }

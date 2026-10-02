@@ -22,16 +22,16 @@
 
 ## File map
 
-| Path | Responsibility |
-| --- | --- |
-| `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml` | Workspace scripts and deterministic installation |
-| `apps/launcher/` | Next.js UI, app manifest, `/api/health`, Worker deployment configuration |
-| `packages/ui/` | Reusable app tile component imported by the launcher |
-| `packages/config/` | Shared TypeScript, ESLint, and formatting configuration |
-| `.github/workflows/ci.yml` | Pull-request validation without deployment secrets |
-| `.github/workflows/deploy-launcher.yml` | Checked `main` deployment and authenticated smoke check |
-| `docs/adding-an-app.md`, `docs/deployment.md`, `docs/data-boundary.md` | Contributor and operator instructions |
-| `LICENSE`, `.gitignore`, `README.md` | Licensing, exclusions, and setup guide |
+| Path                                                                   | Responsibility                                                           |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`                | Workspace scripts and deterministic installation                         |
+| `apps/launcher/`                                                       | Next.js UI, app manifest, `/api/health`, Worker deployment configuration |
+| `packages/ui/`                                                         | Reusable app tile component imported by the launcher                     |
+| `packages/config/`                                                     | Shared TypeScript, ESLint, and formatting configuration                  |
+| `.github/workflows/ci.yml`                                             | Pull-request validation without deployment secrets                       |
+| `.github/workflows/deploy-launcher.yml`                                | Checked `main` deployment and authenticated smoke check                  |
+| `docs/adding-an-app.md`, `docs/deployment.md`, `docs/data-boundary.md` | Contributor and operator instructions                                    |
+| `LICENSE`, `.gitignore`, `README.md`                                   | Licensing, exclusions, and setup guide                                   |
 
 ## Review Focus
 
