@@ -1,5 +1,7 @@
 # Slice Launcher Foundation Design
 
+> **2026-10-02 update:** Ivan chose a public launcher URL with authentication inside the app. Cloudflare Access steps below record the original plan and are superseded by [deployment.md](../../deployment.md). The current empty launcher has no sign-in or private data.
+
 **Status:** Approved by Ivan on 2026-10-02
 
 ## Purpose

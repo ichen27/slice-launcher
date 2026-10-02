@@ -8,4 +8,4 @@ This repository is public. Application code, schemas, migrations, and synthetic 
 - Review new dependencies, logs, and error handling for accidental exposure before merging.
 - If a secret is committed, rotate it and remove it from Git history before continuing; deleting it from the latest commit is insufficient.
 
-The current launcher has no database connection or alumni records.
+The current launcher has no database connection, alumni records, or in-app sign-in. Keep private content out until server-side authentication and authorization are implemented and tested.

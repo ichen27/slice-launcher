@@ -47,16 +47,12 @@ jobs:
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      - name: Smoke check through Cloudflare Access
+      - name: Smoke check public launcher
         run: |
           test -n "$SLICE_LAUNCHER_URL"
           status=$(curl --silent --show-error --output health.json --write-out '%{http_code}' \
-            --header "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
-            --header "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
             "$SLICE_LAUNCHER_URL/api/health")
           test "$status" = 200
           python3 -c 'import json; assert json.load(open("health.json")) == {"status": "ok"}'
         env:
           SLICE_LAUNCHER_URL: ${{ vars.SLICE_LAUNCHER_URL }}
-          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
