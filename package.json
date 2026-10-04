@@ -4,16 +4,18 @@
   "version": "0.1.0",
   "packageManager": "pnpm@10.17.1",
   "engines": {
-    "node": ">=22"
+    "node": "^22.13.0 || ^24.0.0"
   },
   "scripts": {
     "dev": "pnpm --filter @slice/launcher dev",
     "build": "pnpm -r --if-present build",
-    "lint": "eslint .",
+    "lint": "pnpm check:workspace && eslint . && pnpm -r --if-present lint",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test",
+    "test": "node --test scripts/*.test.mjs && pnpm -r --if-present test",
     "format:check": "prettier --check .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "check:workspace": "node scripts/check-workspace.mjs",
+    "smoke:launcher": "node scripts/smoke-launcher.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

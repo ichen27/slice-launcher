@@ -3,6 +3,7 @@ name: Deploy launcher
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -10,8 +11,11 @@ permissions:
 jobs:
   validate-main:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
           version: 10.17.1
@@ -25,14 +29,31 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm smoke:launcher
 
   deploy-launcher:
     needs: validate-main
-    if: vars.SLICE_LAUNCHER_DEPLOY_ENABLED == 'true'
+    if: github.ref == 'refs/heads/main' && vars.SLICE_LAUNCHER_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: production
+    concurrency:
+      group: slice-launcher-production
+      queue: max
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check deployment configuration
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Missing production account ID"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Missing production API token"; exit 1; }
+          test -n "$SLICE_LAUNCHER_URL" || { echo "::error::Missing launcher URL"; exit 1; }
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          SLICE_LAUNCHER_URL: ${{ vars.SLICE_LAUNCHER_URL }}
       - uses: pnpm/action-setup@v4
         with:
           version: 10.17.1
@@ -41,18 +62,25 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @slice/launcher build
+      - run: pnpm --filter @slice/launcher... build
+      - name: Skip superseded commits
+        id: revision
+        run: |
+          current=$(git ls-remote origin refs/heads/main | cut -f1)
+          test -n "$current"
+          if [ "$current" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Skipping deployment: main has advanced beyond $GITHUB_SHA." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Deploy Worker
+        if: steps.revision.outputs.current == 'true'
         run: pnpm --filter @slice/launcher run deploy
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Smoke check public launcher
-        run: |
-          test -n "$SLICE_LAUNCHER_URL"
-          status=$(curl --silent --show-error --output health.json --write-out '%{http_code}' \
-            "$SLICE_LAUNCHER_URL/api/health")
-          test "$status" = 200
-          python3 -c 'import json; assert json.load(open("health.json")) == {"status": "ok"}'
+        if: steps.revision.outputs.current == 'true'
+        run: node scripts/check-launcher.mjs "$SLICE_LAUNCHER_URL"
         env:
           SLICE_LAUNCHER_URL: ${{ vars.SLICE_LAUNCHER_URL }}
