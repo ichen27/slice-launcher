@@ -120,3 +120,67 @@ test("fails if the membership route remains missing after the deadline", async (
     /Service identity/,
   );
 });
+
+async function probeServer(t, handler) {
+  const server = createServer(handler);
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  return `http://127.0.0.1:${server.address().port}`;
+}
+
+test("unauthenticated requests must reach the configured Access login", async (t) => {
+  const { checkAccessBoundary } = await import("./check-launcher.mjs");
+  const requests = [];
+  const url = await probeServer(t, (request, response) => {
+    requests.push(request);
+    response.writeHead(302, {
+      location: "https://fixture.cloudflareaccess.com/cdn-cgi/access/login/example",
+    });
+    response.end();
+  });
+  await checkAccessBoundary(url, "https://fixture.cloudflareaccess.com");
+  assert.equal(requests.length, 2);
+  assert.ok(requests.every((request) => !request.headers["cf-access-client-secret"]));
+  await assert.rejects(checkAccessBoundary(url, "https://wrong.cloudflareaccess.com"), /origin/);
+});
+
+test("missing Access protection fails immediately", async (t) => {
+  const { checkAccessBoundary } = await import("./check-launcher.mjs");
+  let calls = 0;
+  const url = await probeServer(t, (_request, response) => {
+    calls++;
+    response.writeHead(200);
+    response.end("public");
+  });
+  await assert.rejects(
+    checkAccessBoundary(url, "https://fixture.cloudflareaccess.com"),
+    /redirected/,
+  );
+  assert.equal(calls, 1);
+});
+
+test("a stale release never passes production verification", async (t) => {
+  let calls = 0;
+  const url = await probeServer(t, (_request, response) => {
+    calls++;
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(JSON.stringify({ status: "ok", release: "old" }));
+  });
+  await assert.rejects(
+    checkLauncher(url, { expectedRelease: "new", timeoutMs: 5, retryDelayMs: 1 }),
+    /not serving yet/,
+  );
+  assert.ok(calls >= 2);
+});
+
+test("an auth failure during rollout is not retried", async (t) => {
+  let calls = 0;
+  const url = await probeServer(t, (_request, response) => {
+    calls++;
+    response.writeHead(403);
+    response.end();
+  });
+  await assert.rejects(checkLauncher(url, { retryDelayMs: 1 }), /Health endpoint/);
+  assert.equal(calls, 1);
+});
