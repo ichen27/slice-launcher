@@ -23,8 +23,8 @@
     },
   ],
   "vars": {
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": "",
+    "ACCESS_TEAM_DOMAIN": "https://snowy-voice-36a1.cloudflareaccess.com",
+    "ACCESS_AUD": "a176f7f76272a49ac4575fe315783b6cf1c5129bbdd95f666ebe3c046da7008f",
   },
   "images": {
     "binding": "IMAGES",

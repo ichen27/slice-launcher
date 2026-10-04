@@ -1,6 +1,6 @@
 # Slice Launcher
 
-The public monorepo for Slice Consulting’s app launcher and future independently deployed apps. The launcher currently contains an empty catalog and no sign-in. The public page currently contains no internal data or app links. In-app authentication must be added before private content.
+The public monorepo for Slice Consulting’s app launcher and future independently deployed apps. The launcher includes an application catalog and membership administration. Cloudflare Access verifies Google identities at the approved email domain; the app enforces current membership, access levels, and individual permissions using private D1 storage. New members await approval. See [membership administration](docs/membership.md).
 
 ## Workspace
 
@@ -35,6 +35,6 @@ Use `pnpm format` to apply the repository style. See [adding an app](docs/adding
 
 ## Changes
 
-Open a pull request into `main`. The `validate` job checks each app declares its required scripts, formatting, workspace and app-specific lint, types, tests, a production build, and a local Worker smoke test (page, health endpoint, CSS, and JavaScript). Ivan reviews contributions from others; his own pull requests need no other approval. Ivan is currently the sole maintainer with write access. Production deployment is configured separately and stays disabled until the Cloudflare CI credential is ready.
+Open a pull request into `main`. The `validate` job checks each app declares its required scripts, formatting, workspace and app-specific lint, types, tests, a production build, and a local Worker smoke test (page, health endpoint, CSS, and JavaScript). Ivan reviews contributions from others; his own pull requests need no other approval. Ivan is currently the sole maintainer with write access. Protected production deployment uses Wrangler and GitHub production secrets, including a Slice-only Access service credential for release checks.
 
 Licensed under MIT; copyright Slice Consulting.
