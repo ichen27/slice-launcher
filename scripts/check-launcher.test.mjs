@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { test } from "node:test";
-import { checkLauncher } from "./check-launcher.mjs";
+import { checkLauncher, checkMembershipDenied } from "./check-launcher.mjs";
 
 async function serve(t, missingAsset = false, observe = () => {}, externalAsset = false) {
   const server = createServer((request, response) => {
@@ -60,5 +60,63 @@ test("never sends credentials to an asset on another origin", async (t) => {
       access: { id: "fixture-id", secret: "fixture-secret" },
     }),
     /same origin/,
+  );
+});
+
+test("waits for the new membership route during rollout", async (t) => {
+  let calls = 0;
+  const server = createServer((_request, response) => {
+    calls++;
+    response.writeHead(calls === 1 ? 404 : 401, {
+      "content-type": "application/json",
+      "cache-control": "private, no-store",
+    });
+    response.end('{"error":"Sign in required"}');
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  await checkMembershipDenied(`http://127.0.0.1:${server.address().port}`, {
+    access: { id: "fixture", secret: "fixture" },
+    retryDelayMs: 1,
+  });
+  assert.equal(calls, 2);
+});
+
+test("never retries a successful service-identity data response", async (t) => {
+  let calls = 0;
+  const server = createServer((_request, response) => {
+    calls++;
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end("{}");
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  await assert.rejects(
+    checkMembershipDenied(`http://127.0.0.1:${server.address().port}`, {
+      access: { id: "fixture", secret: "fixture" },
+      retryDelayMs: 1,
+    }),
+    /Service identity/,
+  );
+  assert.equal(calls, 1);
+});
+
+test("fails if the membership route remains missing after the deadline", async (t) => {
+  const server = createServer((_request, response) => {
+    response.writeHead(404);
+    response.end();
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  await assert.rejects(
+    checkMembershipDenied(`http://127.0.0.1:${server.address().port}`, {
+      access: { id: "fixture", secret: "fixture" },
+      retryDelayMs: 1,
+      timeoutMs: 5,
+    }),
+    /Service identity/,
   );
 });

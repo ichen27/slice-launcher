@@ -63,21 +63,38 @@ export async function checkLauncher(baseUrl, { signal, access } = {}) {
   );
 }
 
+export async function checkMembershipDenied(
+  baseUrl,
+  { access, retryDelayMs = 1000, timeoutMs = 30000 },
+) {
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    const response = await fetch(new URL("/api/membership", baseUrl), {
+      redirect: "error",
+      signal: AbortSignal.timeout(5000),
+      headers: { "CF-Access-Client-Id": access.id, "CF-Access-Client-Secret": access.secret },
+    });
+    // The previous Worker version has no membership route during initial propagation.
+    // Retry only that 404; successful data access or any other auth result fails immediately.
+    if (response.status === 404 && Date.now() < deadline) {
+      await response.body?.cancel();
+      await delay(retryDelayMs);
+      continue;
+    }
+    assert.equal(response.status, 401, "Service identity must not access membership data");
+    assert.match(response.headers.get("content-type") ?? "", /application\/json/);
+    assert.match(response.headers.get("cache-control") ?? "", /no-store/);
+    await response.body?.cancel();
+    console.log("Membership API rejects the CI service identity.");
+    return;
+  }
+}
+
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
   assert.ok(process.argv[2], "Usage: node scripts/check-launcher.mjs <base-url>");
   const id = process.env.CF_ACCESS_CLIENT_ID;
   const secret = process.env.CF_ACCESS_CLIENT_SECRET;
   assert.equal(Boolean(id), Boolean(secret), "Both Access service credentials are required");
   await checkLauncher(process.argv[2], { access: id && secret ? { id, secret } : undefined });
-  if (id && secret) {
-    const response = await fetch(new URL("/api/membership", process.argv[2]), {
-      redirect: "error",
-      signal: AbortSignal.timeout(5000),
-      headers: { "CF-Access-Client-Id": id, "CF-Access-Client-Secret": secret },
-    });
-    assert.equal(response.status, 401, "Service identity must not access membership data");
-    assert.match(response.headers.get("content-type") ?? "", /application\/json/);
-    assert.match(response.headers.get("cache-control") ?? "", /no-store/);
-    console.log("Membership API rejects the CI service identity.");
-  }
+  if (id && secret) await checkMembershipDenied(process.argv[2], { access: { id, secret } });
 }
