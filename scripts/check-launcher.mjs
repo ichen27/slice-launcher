@@ -64,11 +64,14 @@ export async function checkLauncher(
   assert.match(html, /App Launcher/);
 
   const assets = new Map();
-  for (const tag of html.matchAll(/<(?:link|script)\b[^>]*>/g)) {
-    const url = tag[0].match(/(?:href|src)="([^"]+)"/)?.[1];
+  for (const tag of html.matchAll(/<(?:link|script)\b[^>]*>/gi)) {
+    const url = tag[0].match(/(?:href|src)="([^"]+)"/i)?.[1];
+    const normalizedTag = tag[0].toLowerCase();
     if (!url || !url.startsWith("/") || url.startsWith("//")) continue;
-    if (tag[0].startsWith("<link") && /rel="stylesheet"/.test(tag[0])) assets.set(url, "text/css");
-    if (tag[0].startsWith("<script") && /\bsrc=/.test(tag[0])) assets.set(url, "javascript");
+    if (normalizedTag.startsWith("<link") && /rel="stylesheet"/i.test(tag[0]))
+      assets.set(url, "text/css");
+    if (normalizedTag.startsWith("<script") && /\bsrc=/i.test(tag[0]))
+      assets.set(url, "javascript");
   }
   assert.ok([...assets.values()].includes("text/css"), "Page must reference a stylesheet");
   assert.ok([...assets.values()].includes("javascript"), "Page must reference its JavaScript");

@@ -1,3 +1,4 @@
+import { readReleaseFile } from "./read-release-file.mjs";
 import assert from "node:assert/strict";
 import { readFile, writeFile, appendFile, lstat, readdir } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
@@ -64,13 +65,9 @@ export async function loadRollbackProvenance(directory, run, repository) {
   const data = {};
   for (const name of expected) {
     const path = join(directory, name);
-    const stat = await lstat(path);
-    assert.ok(
-      stat.isFile() && !stat.isSymbolicLink(),
-      "Provenance must contain ordinary JSON files",
-    );
-    assert.ok(stat.size > 0 && stat.size <= 2 * 1024 * 1024, "Provenance JSON exceeds size limit");
-    data[name] = JSON.parse(await readFile(path, "utf8"));
+    const contents = await readReleaseFile(path, 2 * 1024 * 1024);
+    assert.ok(contents.length > 0, "Provenance JSON must not be empty");
+    data[name] = JSON.parse(contents.toString("utf8"));
   }
   const record = validateVerifiedRelease(data["verified-release.json"], run, repository);
   const manifest = data["release-manifest.json"];

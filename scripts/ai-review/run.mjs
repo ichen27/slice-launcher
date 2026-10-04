@@ -19,7 +19,7 @@ if (process.env.TARGET_BASE && mode !== "pending") {
   };
 } else if (event.pull_request) {
   target = {
-    pr: event.number,
+    pr: Number(event.number),
     base: event.pull_request.base.sha,
     head: event.pull_request.head.sha,
     repository,

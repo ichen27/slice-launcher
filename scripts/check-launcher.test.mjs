@@ -4,7 +4,13 @@ import { once } from "node:events";
 import { test } from "node:test";
 import { checkLauncher, checkMembershipDenied } from "./check-launcher.mjs";
 
-async function serve(t, missingAsset = false, observe = () => {}, externalAsset = false) {
+async function serve(
+  t,
+  missingAsset = false,
+  observe = () => {},
+  externalAsset = false,
+  uppercase = false,
+) {
   const server = createServer((request, response) => {
     observe(request);
     const routes = {
@@ -23,6 +29,11 @@ async function serve(t, missingAsset = false, observe = () => {}, externalAsset 
       return;
     }
     response.setHeader("content-type", route[0]);
+    if (uppercase && request.url === "/")
+      route[1] = route[1].replace(
+        /<(\/?)(link|script)/g,
+        (_match, slash, tag) => "<" + slash + tag.toUpperCase(),
+      );
     response.end(
       externalAsset && request.url === "/"
         ? route[1].replace("/app.js", "/\\evil.invalid/app.js")
@@ -183,4 +194,9 @@ test("an auth failure during rollout is not retried", async (t) => {
   });
   await assert.rejects(checkLauncher(url, { retryDelayMs: 1 }), /Health endpoint/);
   assert.equal(calls, 1);
+});
+
+test("smoke checks inspect uppercase HTML asset tags", async (t) => {
+  await checkLauncher(await serve(t, false, () => {}, false, true));
+  await assert.rejects(checkLauncher(await serve(t, true, () => {}, false, true)), /Asset failed/);
 });

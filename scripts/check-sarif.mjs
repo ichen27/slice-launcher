@@ -13,7 +13,17 @@ export function severeFindings(sarif) {
     for (const invocation of run.invocations ?? [])
       assert.notEqual(invocation.executionSuccessful, false, "Scanner execution failed");
     for (const finding of run.results) {
-      const rule = run.tool?.driver?.rules?.find((r) => r.id === finding.ruleId);
+      const componentIndex = finding.rule?.toolComponent?.index;
+      const components =
+        componentIndex === undefined
+          ? [run.tool?.driver, ...(run.tool?.extensions ?? [])]
+          : [run.tool?.extensions?.[componentIndex]];
+      const ruleId = finding.ruleId ?? finding.rule?.id;
+      const matches = components
+        .flatMap((component) => component?.rules ?? [])
+        .filter((rule) => rule.id === ruleId);
+      assert.equal(matches.length, 1, "Missing or ambiguous scanner rule metadata");
+      const rule = matches[0];
       const severity = Number(rule?.properties?.["security-severity"] ?? 0);
       const level = finding.level ?? rule?.defaultConfiguration?.level;
       if (severity >= 7 || level === "error")

@@ -171,7 +171,7 @@ test("isolated rollback artifact accepts only bounded ordinary expected JSON fil
   await rm(join(directory, "package.json"));
   await rm(join(directory, "verified-release.json"));
   await symlink("release-manifest.json", join(directory, "verified-release.json"));
-  await assert.rejects(loadRollbackProvenance(directory, run, repository), /ordinary JSON/);
+  await assert.rejects(loadRollbackProvenance(directory, run, repository), /ordinary|ELOOP/);
   await rm(join(directory, "verified-release.json"));
   await writeFile(join(directory, "verified-release.json"), " ".repeat(2 * 1024 * 1024 + 1));
   await assert.rejects(loadRollbackProvenance(directory, run, repository), /size limit/);
@@ -200,4 +200,15 @@ test("isolated rollback record must agree with deployment and artifact source", 
     }),
   );
   await assert.rejects(loadRollbackProvenance(directory, run, repository));
+});
+
+test("release file reads reject non-files and enforce the byte bound", async (t) => {
+  const { readReleaseFile } = await import("./read-release-file.mjs");
+  const root = await mkdtemp(join(tmpdir(), "slice-file-read-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await assert.rejects(readReleaseFile(root), /ordinary/);
+  const path = join(root, "file");
+  await writeFile(path, "bounded");
+  assert.equal((await readReleaseFile(path, 7)).toString(), "bounded");
+  await assert.rejects(readReleaseFile(path, 6), /size limit/);
 });

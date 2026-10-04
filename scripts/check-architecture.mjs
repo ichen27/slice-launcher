@@ -152,7 +152,7 @@ export function checkArchitecture(root) {
         toOwner = owner(root, target);
       if (toOwner.startsWith("apps/") && fromOwner !== toOwner)
         errors.push(`${relative(root, file)}: cannot import another app's internals (${ref})`);
-      if (/\/tests\/|\.test\.[cm]?[jt]sx?$/.test(target))
+      if (target.includes("/tests/") || /\.test\.[cm]?[jt]sx?$/.test(target))
         errors.push(
           `${relative(root, file)}: production code cannot import test harness code (${ref})`,
         );

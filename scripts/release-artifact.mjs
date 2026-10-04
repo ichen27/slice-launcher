@@ -1,7 +1,8 @@
+import { readReleaseFile } from "./read-release-file.mjs";
 import { Buffer } from "node:buffer";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readdir, readFile, writeFile, lstat, appendFile } from "node:fs/promises";
+import { readdir, readFile, writeFile, appendFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import process from "node:process";
@@ -9,14 +10,16 @@ import process from "node:process";
 export async function inventory(root) {
   const files = {};
   async function visit(dir) {
-    for (const name of (await readdir(dir)).sort()) {
+    for (const stat of (await readdir(dir, { withFileTypes: true })).sort((a, b) =>
+      a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
+    )) {
+      const name = stat.name;
       const path = join(dir, name);
-      const stat = await lstat(path);
       assert.ok(!stat.isSymbolicLink(), "Release may not contain symlinks");
       if (stat.isDirectory()) await visit(path);
       else {
         assert.ok(stat.isFile(), "Release must contain ordinary files");
-        const contents = await readFile(path);
+        const contents = await readReleaseFile(path);
         assert.ok(
           !contents.includes(Buffer.from("slice-e2e-only")),
           "Test identity harness in release",

@@ -23,3 +23,24 @@ Dependabot alert #1, [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vf
 ## Workflow syntax validation
 
 Shared validation runs official actionlint 1.7.12, downloading the fixed Linux release and verifying its SHA-256 before execution. Local verification used the corresponding checksum-verified Mac arm64 release. It caught and corrected use of `runner.temp` in an unsupported job-level environment expression; isolated recovery paths are now initialized within a runner step. The sole ignored diagnostic is actionlint's unrecognized `concurrency.queue` key: GitHub supports [`queue: max`](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency), which this linter version has not implemented. Remove that narrow compatibility exception when updating actionlint. ShellCheck is disabled in actionlint; CodeQL Actions analysis remains enabled. This does not disable expression/type validation.
+
+## CodeQL result metadata and final review corrections
+
+CodeQL query-pack rules are emitted in SARIF `tool.extensions`, with result-level
+component references. The required severity gate resolves that metadata and fails on
+missing or ambiguous rules; regression tests cover both extension rules and missing
+metadata. The initial driver-only parser incorrectly passed a report containing high
+findings. Running the corrected gate against that same downloaded report rejected all
+four high findings before the source fixes.
+
+Release/provenance file reads now open with `O_NOFOLLOW | O_NONBLOCK`, validate
+the open descriptor, read through that same descriptor, and enforce byte limits
+(64 MiB per release file; 2 MiB per provenance JSON). Isolated runner directories
+and no concurrent untrusted processes remain part of the release trust boundary.
+The HTML smoke probe recognizes case-insensitive asset tags, and architecture
+test-directory matching is separate from the filename suffix expression.
+
+The outbound-request alert traced to the GitHub event file's PR number used in a
+GitHub API path, not a credential file. That field is now explicitly converted to
+a number and validated as a positive safe integer before publishing. No scanner
+rule was disabled or finding suppressed to pass these checks.
