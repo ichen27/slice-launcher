@@ -4,8 +4,9 @@ import { once } from "node:events";
 import { test } from "node:test";
 import { checkLauncher } from "./check-launcher.mjs";
 
-async function serve(t, missingAsset = false) {
+async function serve(t, missingAsset = false, observe = () => {}, externalAsset = false) {
   const server = createServer((request, response) => {
+    observe(request);
     const routes = {
       "/api/health": ["application/json", '{"status":"ok"}'],
       "/": [
@@ -22,7 +23,11 @@ async function serve(t, missingAsset = false) {
       return;
     }
     response.setHeader("content-type", route[0]);
-    response.end(route[1]);
+    response.end(
+      externalAsset && request.url === "/"
+        ? route[1].replace("/app.js", "/\\evil.invalid/app.js")
+        : route[1],
+    );
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -36,4 +41,24 @@ test("checks the served launcher and its stylesheet and JavaScript", async (t) =
 
 test("fails a release when health works but a page asset is missing", async (t) => {
   await assert.rejects(checkLauncher(await serve(t, true)), /Asset failed/);
+});
+
+test("sends the service credential to the page, health and assets", async (t) => {
+  const seen = [];
+  const url = await serve(t, false, (request) => seen.push(request.headers));
+  await checkLauncher(url, { access: { id: "fixture-id", secret: "fixture-secret" } });
+  assert.equal(seen.length, 4);
+  for (const headers of seen) {
+    assert.equal(headers["cf-access-client-id"], "fixture-id");
+    assert.equal(headers["cf-access-client-secret"], "fixture-secret");
+  }
+});
+
+test("never sends credentials to an asset on another origin", async (t) => {
+  await assert.rejects(
+    checkLauncher(await serve(t, false, () => {}, true), {
+      access: { id: "fixture-id", secret: "fixture-secret" },
+    }),
+    /same origin/,
+  );
 });

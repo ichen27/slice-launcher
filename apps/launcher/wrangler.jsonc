@@ -14,6 +14,18 @@
     "not_found_handling": "none",
     "binding": "ASSETS",
   },
+  "d1_databases": [
+    {
+      "binding": "MEMBERSHIP_DB",
+      "database_name": "slice-membership",
+      "database_id": "393d57d2-a0a9-443f-8c4c-e0884b5a7f51",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "vars": {
+    "ACCESS_TEAM_DOMAIN": "https://snowy-voice-36a1.cloudflareaccess.com",
+    "ACCESS_AUD": "a176f7f76272a49ac4575fe315783b6cf1c5129bbdd95f666ebe3c046da7008f",
+  },
   "images": {
     "binding": "IMAGES",
   },

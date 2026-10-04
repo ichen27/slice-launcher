@@ -3,27 +3,30 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@slice/ui": "workspace:*",
     "@vinext/cloudflare": "1.0.1",
+    "jose": "^6.2.12",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-server-dom-webpack": "19.3.0",
     "vinext": "1.0.1",
-    "@slice/ui": "workspace:*"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.62.5",
+    "@slice/config": "workspace:*",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "^26.6.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
     "@vitejs/plugin-rsc": "0.5.35",
+    "miniflare": "5.20261001.0-alpha",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "vite": "8.3.2",
     "vitest": "^5.0.3",
-    "wrangler": "^4.147.0",
-    "@slice/config": "workspace:*"
+    "wrangler": "^4.147.0"
   },
   "type": "module",
   "scripts": {
