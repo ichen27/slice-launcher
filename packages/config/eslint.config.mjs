@@ -5,6 +5,10 @@ export default [
   {
     ignores: [
       "**/node_modules/**",
+      "**/coverage/**",
+      "**/test-results/**",
+      "**/playwright-report/**",
+      "**/.e2e/**",
       "**/dist/**",
       "**/.vinext/**",
       "**/.next/**",

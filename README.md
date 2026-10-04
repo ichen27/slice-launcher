@@ -27,6 +27,10 @@ pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm test:coverage
+pnpm test:migrations
+pnpm --filter @slice/launcher exec playwright install chromium
+pnpm test:e2e
 pnpm build
 pnpm smoke:launcher
 ```
@@ -35,6 +39,10 @@ Use `pnpm format` to apply the repository style. See [adding an app](docs/adding
 
 ## Changes
 
-Open a pull request into `main`. The `validate` job checks each app declares its required scripts, formatting, workspace and app-specific lint, types, tests, a production build, and a local Worker smoke test (page, health endpoint, CSS, and JavaScript). Ivan reviews contributions from others; his own pull requests need no other approval. Ivan is currently the sole maintainer with write access. Protected production deployment uses Wrangler and GitHub production secrets, including a Slice-only Access service credential for release checks.
+Open a pull request into `main`. The stable `validate` check requires shared quality validation and security scanning. It covers app contracts, import boundaries, formatting, lint, types, behavioral tests, critical-module coverage, migration and browser tests, the production build, CodeQL, dependency review, and local Worker smoke. See [contributing](CONTRIBUTING.md) and [security review](docs/security-review.md). Ivan reviews contributions from others; his own pull requests need no other approval. Ivan is currently the sole maintainer with write access. Protected production deployment uses Wrangler and GitHub production secrets, including a Slice-only Access service credential for release checks.
 
 Licensed under MIT; copyright Slice Consulting.
+
+## Advisory model review
+
+The proposed trusted-base GPT reviewer and optional TypeSafe Jev judgments supplement deterministic checks. They cannot approve, merge, deploy, or waive required checks. See [AI review](docs/ai-review.md) for activation, limits, costs and evaluation. Model API credits are separate from ChatGPT/Codex subscriptions. Never paste keys into chat or commit them.
