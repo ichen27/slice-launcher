@@ -32,7 +32,7 @@ function owner(root, file) {
   return relative(root, file).split("/").slice(0, 2).join("/");
 }
 export function checkArchitecture(root) {
-  root = resolve(root);
+  root = resolve(ts.sys.realpath ? ts.sys.realpath(root) : root);
   const errors = [];
   const graph = new Map();
   const workspaces = new Map();
