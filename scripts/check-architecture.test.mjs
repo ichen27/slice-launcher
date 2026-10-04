@@ -63,3 +63,24 @@ test("type imports cannot reach another app and production cannot import a test 
   });
   assert.equal(checkArchitecture(root).length, 2);
 });
+
+test("resolves app aliases before enforcing client server boundaries", (t) => {
+  const root = fixture(t, {
+    ...manifests,
+    "apps/a/tsconfig.json": JSON.stringify({
+      compilerOptions: { baseUrl: ".", paths: { "@/*": ["src/*"] } },
+    }),
+    "apps/a/page.tsx": '"use client"; import {db} from "@/private";',
+    "apps/a/src/private.ts": 'import "server-only"; export const db=1;',
+  });
+  assert.match(checkArchitecture(root).join("\n"), /client reaches server-only/);
+});
+test("walks shared workspace packages from client entries", (t) => {
+  const root = fixture(t, {
+    ...manifests,
+    "apps/a/page.tsx": '"use client"; import {db} from "@slice/ui";',
+    "packages/ui/src/index.ts": 'export {db} from "./private";',
+    "packages/ui/src/private.ts": 'import "server-only"; export const db=1;',
+  });
+  assert.match(checkArchitecture(root).join("\n"), /client reaches server-only/);
+});
