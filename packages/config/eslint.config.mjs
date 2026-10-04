@@ -24,6 +24,8 @@ export default [
         AbortSignal: "readonly",
         AbortController: "readonly",
         fetch: "readonly",
+        Response: "readonly",
+        structuredClone: "readonly",
       },
     },
   },
