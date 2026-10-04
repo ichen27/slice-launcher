@@ -19,6 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production
+    env:
+      VERIFIED_RUN_PATH: ${{ runner.temp }}/verified-run.json
+      PROVENANCE_DIRECTORY: ${{ runner.temp }}/rollback-provenance
     concurrency:
       group: slice-launcher-production
       queue: max
@@ -33,10 +36,12 @@ jobs:
           VERIFIED_RUN_ID: ${{ inputs.verified_run_id }}
         run: |
           [[ "$VERIFIED_RUN_ID" =~ ^[1-9][0-9]{0,19}$ ]]
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERIFIED_RUN_ID" > verified-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERIFIED_RUN_ID" > "$VERIFIED_RUN_PATH"
+          node scripts/release-provenance.mjs source-run
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: verified-release
+          path: ${{ env.PROVENANCE_DIRECTORY }}
           run-id: ${{ inputs.verified_run_id }}
           github-token: ${{ github.token }}
       - name: Validate recorded version and provenance
@@ -76,7 +81,7 @@ jobs:
         with:
           name: rollback-evidence
           path: |
-            verified-release.json
+            ${{ env.PROVENANCE_DIRECTORY }}/verified-release.json
             deployment.json
           retention-days: 90
       - if: failure()

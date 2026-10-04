@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { readFile, writeFile, appendFile } from "node:fs/promises";
+import { readFile, writeFile, appendFile, lstat, readdir } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import process from "node:process";
+import { join } from "node:path";
 
 const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/;
 export function validateDeployment(deployment, expectedVersion) {
@@ -14,12 +15,26 @@ export function validateDeployment(deployment, expectedVersion) {
     assert.equal(version.version_id, expectedVersion, "Unexpected active Worker version");
   return version.version_id;
 }
-export function validateVerifiedRelease(record, run) {
+export function validateSourceRun(run, repository) {
+  assert.match(repository, /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, "Expected repository is required");
+  assert.equal(run.repository?.full_name, repository, "Run must belong to this repository");
+  assert.equal(
+    run.head_repository?.full_name,
+    repository,
+    "Fork runs cannot supply recovery artifacts",
+  );
+  assert.ok(Number.isSafeInteger(run.id) && run.id > 0, "Invalid run ID");
+  assert.match(run.head_sha, /^[0-9a-f]{40}$/);
+
   assert.equal(run.conclusion, "success", "Only successful release runs may be restored");
   assert.equal(run.status, "completed");
   assert.equal(run.path, ".github/workflows/deploy-launcher.yml");
   assert.equal(run.head_branch, "main");
   assert.ok(["push", "workflow_dispatch"].includes(run.event));
+  return run;
+}
+export function validateVerifiedRelease(record, run, repository) {
+  validateSourceRun(run, repository);
   assert.equal(record.runId, String(run.id));
   assert.equal(record.source, run.head_sha);
   assert.equal(record.schema, 1);
@@ -33,6 +48,42 @@ export function validateVerifiedRelease(record, run) {
   assert.match(record.deployment, uuid);
   return record;
 }
+export async function loadRollbackProvenance(directory, run, repository) {
+  validateSourceRun(run, repository);
+  const directoryStat = await lstat(directory);
+  assert.ok(
+    directoryStat.isDirectory() && !directoryStat.isSymbolicLink(),
+    "Provenance directory must be ordinary",
+  );
+  const expected = ["deployment.json", "release-manifest.json", "verified-release.json"];
+  assert.deepEqual(
+    (await readdir(directory)).sort(),
+    expected,
+    "Unexpected provenance artifact files",
+  );
+  const data = {};
+  for (const name of expected) {
+    const path = join(directory, name);
+    const stat = await lstat(path);
+    assert.ok(
+      stat.isFile() && !stat.isSymbolicLink(),
+      "Provenance must contain ordinary JSON files",
+    );
+    assert.ok(stat.size > 0 && stat.size <= 2 * 1024 * 1024, "Provenance JSON exceeds size limit");
+    data[name] = JSON.parse(await readFile(path, "utf8"));
+  }
+  const record = validateVerifiedRelease(data["verified-release.json"], run, repository);
+  const manifest = data["release-manifest.json"];
+  assert.equal(manifest.schema, 1);
+  assert.equal(manifest.worker, record.worker);
+  assert.equal(manifest.source, record.source);
+  assert.equal(manifest.digest, record.digest);
+  const deployment = data["deployment.json"];
+  assert.equal(deployment.id, record.deployment);
+  validateDeployment(deployment, record.version);
+  return record;
+}
+
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
   const [mode] = process.argv.slice(2);
   if (mode === "record") {
@@ -68,10 +119,17 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
         2,
       ) + "\n",
     );
+  } else if (mode === "source-run") {
+    const run = validateSourceRun(
+      JSON.parse(await readFile(process.env.VERIFIED_RUN_PATH, "utf8")),
+      process.env.GITHUB_REPOSITORY,
+    );
+    assert.equal(String(run.id), process.env.VERIFIED_RUN_ID);
   } else if (mode === "rollback-target") {
-    const record = validateVerifiedRelease(
-      JSON.parse(await readFile("verified-release.json", "utf8")),
-      JSON.parse(await readFile("verified-run.json", "utf8")),
+    const record = await loadRollbackProvenance(
+      process.env.PROVENANCE_DIRECTORY,
+      JSON.parse(await readFile(process.env.VERIFIED_RUN_PATH, "utf8")),
+      process.env.GITHUB_REPOSITORY,
     );
     await appendFile(
       process.env.GITHUB_OUTPUT,
