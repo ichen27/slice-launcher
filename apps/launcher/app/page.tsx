@@ -1,3 +1,4 @@
+import { AccountNav } from "../src/membership/account-nav";
 import { AppTile } from "@slice/ui";
 import { apps, getPublicAppUrl } from "../src/lib/apps";
 
@@ -37,6 +38,7 @@ export default function Home() {
         </a>
         <div className="header-divider" aria-hidden="true" />
         <span className="workspace-label">App Launcher</span>
+        <AccountNav />
       </header>
       <main id="main" className="workspace-main">
         <section aria-labelledby="applications-title">

@@ -1,6 +1,6 @@
 # Launcher deployment
 
-The launcher is a Cloudflare Worker built with vinext and deployed with the project’s pinned Wrangler CLI. The initial production URL is `https://slice-launcher.ivan27chen.workers.dev` in Ivan’s Cloudflare account. Anyone can reach the public launcher route. Authentication for internal content will be implemented inside the app; the current launcher has no sign-in, app links, database connection, or confidential records. Do not add private content until server-side authorization is implemented and verified.
+The launcher is a Cloudflare Worker built with vinext and deployed with the project’s pinned Wrangler CLI. The initial production URL is `https://slice-launcher.ivan27chen.workers.dev` in Ivan’s Cloudflare account. The public shell contains no member records. Membership APIs require a verified Cloudflare Access JWT and current in-app authorization. See [membership administration and activation](membership.md) before enabling sign-in or changing the Access scope. Blank Access configuration fails closed.
 
 ## Manual deployment
 

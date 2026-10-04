@@ -11,3 +11,7 @@ New apps live in `apps/<app-name>` and deploy independently. They may import `@s
 7. Open a pull request. Include the app’s independent deployment and rollback instructions. The `validate` check must pass. Ivan reviews contributions from others before he merges them; his own pull requests do not require another reviewer.
 
 Do not commit live data, database exports, credentials, API tokens, `.env` files, or `.dev.vars` files. See [data boundaries](data-boundary.md).
+
+## Membership permissions
+
+Each catalog entry produces an `app.<id>.open` capability for access levels. Independently deployed apps must verify identity and check current membership on their server before serving private data. Hiding a launcher link is not an access control. See [membership](membership.md).
