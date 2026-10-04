@@ -17,9 +17,9 @@
 
 ## Tasks
 
-- [ ] Standards and tests: inspect existing authorization tests; enforce app/package boundaries with parsed imports; document app configuration contracts and standards; add signed synthetic browser tests with isolated SQLite/D1; test migration history, measure critical-module coverage, add focused accessibility checks.
-- [ ] Release and required validation: shared checks, fail-closed validate aggregation, pinned Actions, CodeQL/dependency review/Dependabot, build once artifact with digest/source identity, same artifact deployment, version smoke and Access denial, explicit verified-version rollback with migration policy.
-- [ ] Advisory review: trusted protected-base collection via GitHub read API, exact base/head, bounded complete context and explicit incomplete result, GPT strict structured output, optional TypeSafe official API judgments, safe idempotent publication, stale detection, mock-provider security tests and independent A/B evaluation fixtures.
+- [x] Standards and tests: inspect existing authorization tests; enforce app/package boundaries with parsed imports; document app configuration contracts and standards; add signed synthetic browser tests with isolated SQLite/D1; test migration history, measure critical-module coverage, add focused accessibility checks.
+- [x] Release and required validation: shared checks, fail-closed validate aggregation, pinned Actions, CodeQL/dependency review/Dependabot, build once artifact with digest/source identity, same artifact deployment, version smoke and Access denial, explicit verified-version rollback with migration policy.
+- [x] Advisory review: trusted protected-base collection via GitHub read API, exact base/head, bounded complete context and explicit incomplete result, GPT strict structured output, optional TypeSafe official API judgments, safe idempotent publication, stale detection, mock-provider security tests and independent A/B evaluation fixtures.
 - [ ] Integration: run checks, inspect trust boundaries and generated artifacts, test representative required-gate failures, open draft PR, inspect Actions and protection, document settings/costs and untested paths, record verified state in Obsidian.
 
 ## Review focus
@@ -29,3 +29,11 @@ Check fork PR secrets, stale head races, oversized/binary/dropped context, denia
 ## Execution and ownership
 
 Use disjoint parallel work areas (tests/standards, release workflow, AI review), then an independent whole-branch review. Parent coordinates shared package/lock changes and final integration. Deliver logical commits, tests, and evidence. No remote production actions.
+
+## Verification checkpoint
+
+Implementation completed on isolated SSD branch `feat/cicd-ai-review`. Local formatting, lint, types, 46 tooling tests, 37 application tests, measured critical coverage, two browser scenarios, migration checks, production build, expected-SHA Worker smoke and artifact integrity checks passed. Thirteen advisory AI tests and fourteen mock A/B arm runs passed; live provider quality/cost was not measured. Independent review findings were repaired and rechecked: rollback download isolation, required standards loading, base/head staleness, renamed-file completeness, and erased named type imports.
+
+Draft PR #11: https://github.com/ichen27/slice-launcher/pull/11 . Deliberately omitted the required Testing section in a diagnostic commit; Actions run 37232168745 failed the quality job and the required `validate` while every security job passed. This proves a failing prerequisite cannot turn into a green aggregate. The diagnostic change is restored in this commit. Main protection was re-read: strict required validate (GitHub Actions app15368), zero approvals, conversation resolution, admin enforcement, force/deletion disabled. Final restored-head Actions result is recorded in the PR and Obsidian once complete.
+
+No merge, production deployment/access changes, production migrations, or live rollback performed. Existing Dependabot alerts/security updates enabled; unpatched transitive braces advisory documented. Provider activation, real A/B quality evaluation, first verified production release and an operator-approved live rollback exercise remain follow-up activation work requiring credentials/approval. The AI workflow deliberately executes protected-base code, so its first unmerged PR cannot bootstrap privileged execution.

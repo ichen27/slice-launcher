@@ -12,6 +12,6 @@ Cloudflare authenticates human identities. The membership API checks active memb
 
 Wrangler deploys the validated build artifact through the protected production workflow. See ../../docs/deployment.md for provenance, verification, rollback and migration ordering. Independent future apps require their own authorization and deployment configuration.
 
-## Gate verification: deliberately missing required heading
+## Testing
 
 Vitest exercises authorization/domain/API and D1 persistence. Playwright exercises actual membership UI against signed synthetic identities and isolated data. Shared CI runs coverage, migrations, and Worker smoke; browser tests do not prove real Google/Cloudflare authentication.
