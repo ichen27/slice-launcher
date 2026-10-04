@@ -12,6 +12,17 @@ export default [
       "**/next-env.d.ts",
     ],
   },
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        URL: "readonly",
+        AbortSignal: "readonly",
+        AbortController: "readonly",
+        fetch: "readonly",
+      },
+    },
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
 ];
