@@ -84,3 +84,21 @@ test("walks shared workspace packages from client entries", (t) => {
   });
   assert.match(checkArchitecture(root).join("\n"), /client reaches server-only/);
 });
+
+test("allows erased named import/export specifiers but rejects mixed value imports", (t) => {
+  const common = {
+    ...manifests,
+    "apps/a/server.ts": 'import "server-only"; export type DB=string; export const value=1;',
+  };
+  const erased = fixture(t, {
+    ...common,
+    "apps/a/page.tsx":
+      '"use client"; import {type DB} from "./server"; export {type DB as Other} from "./server";',
+  });
+  assert.deepEqual(checkArchitecture(erased), []);
+  const mixed = fixture(t, {
+    ...common,
+    "apps/a/page.tsx": '"use client"; import {type DB, value} from "./server";',
+  });
+  assert.match(checkArchitecture(mixed).join("\n"), /client reaches server-only/);
+});

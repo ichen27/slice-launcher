@@ -6,6 +6,7 @@ export default [
     ignores: [
       "**/node_modules/**",
       "**/coverage/**",
+      "ai-review-output/**",
       "**/test-results/**",
       "**/playwright-report/**",
       "**/.e2e/**",

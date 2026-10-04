@@ -71,7 +71,15 @@ export function checkArchitecture(root) {
     let secretEnv = false;
     const visit = (node) => {
       if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier) {
-        const target = node.importClause?.isTypeOnly || node.isTypeOnly ? typeRefs : refs;
+        const clause = node.importClause;
+        const named = clause?.namedBindings ?? node.exportClause;
+        const erasedSpecifiers =
+          named &&
+          (ts.isNamedImports(named) || ts.isNamedExports(named)) &&
+          named.elements.length > 0 &&
+          named.elements.every((element) => element.isTypeOnly) &&
+          !clause?.name;
+        const target = clause?.isTypeOnly || node.isTypeOnly || erasedSpecifiers ? typeRefs : refs;
         target.push(node.moduleSpecifier.text);
       }
       if (
