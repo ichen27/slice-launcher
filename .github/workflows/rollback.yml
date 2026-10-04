@@ -19,9 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production
-    env:
-      VERIFIED_RUN_PATH: ${{ runner.temp }}/verified-run.json
-      PROVENANCE_DIRECTORY: ${{ runner.temp }}/rollback-provenance
     concurrency:
       group: slice-launcher-production
       queue: max
@@ -30,6 +27,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Initialize isolated paths
+        run: |
+          echo "VERIFIED_RUN_PATH=$RUNNER_TEMP/verified-run.json" >> "$GITHUB_ENV"
+          echo "PROVENANCE_DIRECTORY=$RUNNER_TEMP/rollback-provenance" >> "$GITHUB_ENV"
       - name: Validate source run
         env:
           GH_TOKEN: ${{ github.token }}
