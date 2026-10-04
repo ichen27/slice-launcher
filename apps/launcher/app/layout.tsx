@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Slice Consulting | App Launcher",
-  description: "A home for Slice Consulting internal tools.",
+  description: "Slice Consulting applications.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
