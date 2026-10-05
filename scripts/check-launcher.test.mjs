@@ -179,10 +179,11 @@ test("a stale release never passes production verification", async (t) => {
     response.end(JSON.stringify({ status: "ok", release: "old" }));
   });
   await assert.rejects(
-    checkLauncher(url, { expectedRelease: "new", timeoutMs: 5, retryDelayMs: 1 }),
+    checkLauncher(url, { expectedRelease: "new", timeoutMs: 0, retryDelayMs: 1 }),
     /not serving yet/,
   );
-  assert.ok(calls >= 2);
+  // An expired deadline must fail on the first stale response, independent of runner speed.
+  assert.equal(calls, 1);
 });
 
 test("an auth failure during rollout is not retried", async (t) => {
