@@ -7,6 +7,7 @@ import {
   parsePatch,
   renderComment,
   configFromEnv,
+  callJev,
 } from "./ai-review/core.mjs";
 
 const base = "a".repeat(40);
@@ -347,4 +348,85 @@ test("a base-only advance invalidates a published review", async () => {
   await publish(api, { pr: 12, base, head, repository: "owner/repo" }, report);
   assert.match(calls.find((call) => call.options?.method).options.body.body, /STALE/);
   assert.match(renderComment(report, head, "owner/repo", "e".repeat(40)), /STALE/);
+});
+
+test("Cloudflare Jev uses a fixed account endpoint and preserves original GPT context", async () => {
+  const account = "a".repeat(32);
+  const cloud = configFromEnv({
+    OPENAI_API_KEY: "openai-test",
+    AI_JEV_ENABLED: "true",
+    JEV_PROVIDER: "cloudflare",
+    JEV_CLOUDFLARE_ACCOUNT_ID: account,
+    JEV_CLOUDFLARE_API_TOKEN: "cloudflare-test",
+  });
+  const calls = [];
+  const result = await review(context, cloud, async (url, options) => {
+    calls.push({ url, options, body: JSON.parse(options.body) });
+    if (url.includes("cloudflare"))
+      return response({
+        success: true,
+        result: {
+          state: "Completed",
+          result: {
+            model: "jev-1.13.0",
+            answers: {
+              sensitive: { type: "noul", noul: 1 },
+              test_gap: { type: "noul", noul: 0.9 },
+            },
+            usage: { input_tokens: 120, output_tokens: 12 },
+          },
+        },
+      });
+    return response(gptResponse());
+  });
+  assert.equal(result.jev.status, "completed");
+  assert.equal(
+    calls[0].url,
+    "https://api.cloudflare.com/client/v4/accounts/" + account + "/ai/run",
+  );
+  assert.equal(calls[0].body.model, "typesafe/jev");
+  assert.equal(calls[0].options.headers.Authorization, "Bearer cloudflare-test");
+  assert.equal(calls[0].options.redirect, "error");
+  assert.match(JSON.stringify(calls[1].body.input), /const allowed = true/);
+  assert.equal(calls[1].options.headers.Authorization, "Bearer openai-test");
+});
+
+test("Cloudflare Jev rejects URL injection without preventing GPT review", async () => {
+  for (const extra of [
+    { JEV_PROVIDER: "arbitrary" },
+    { JEV_PROVIDER: "cloudflare", JEV_CLOUDFLARE_ACCOUNT_ID: "../evil" },
+    { JEV_PROVIDER: "cloudflare" },
+  ]) {
+    const invalid = configFromEnv({
+      OPENAI_API_KEY: "test",
+      AI_JEV_ENABLED: "true",
+      TYPESAFE_API_KEY: "test",
+      JEV_CLOUDFLARE_API_TOKEN: "test",
+      ...extra,
+    });
+    await assert.rejects(
+      callJev({}, invalid, () => {
+        throw new Error("unexpected network");
+      }),
+      /Unknown Jev|Invalid Jev/,
+    );
+    let calls = 0;
+    const result = await review(context, invalid, async (url) => {
+      calls++;
+      assert.match(url, /^https:\/\/api.openai.com\//);
+      return response(gptResponse());
+    });
+    assert.equal(result.status, "completed");
+    assert.equal(result.jev.status, "failed");
+    assert.equal(calls, 1);
+  }
+  const disabled = configFromEnv({
+    OPENAI_API_KEY: "test",
+    AI_JEV_ENABLED: "false",
+    JEV_PROVIDER: "cloudflare",
+  });
+  assert.equal(
+    (await review(context, disabled, async () => response(gptResponse()))).status,
+    "completed",
+  );
 });

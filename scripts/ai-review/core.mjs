@@ -167,6 +167,8 @@ export function validateFindings(value, context) {
 export function configFromEnv(env) {
   const gptModel = env.OPENAI_REVIEW_MODEL || "gpt-5.4-2026-03-05";
   const jevModel = env.TYPESAFE_REVIEW_MODEL || "jev-1.13.0";
+  const jevProvider = env.JEV_PROVIDER || "typesafe";
+  const jevAccount = env.JEV_CLOUDFLARE_ACCOUNT_ID || "";
   const numeric = (name, fallback, max) => {
     const value = Number(env[name] || fallback);
     if (!Number.isFinite(value) || value <= 0 || value > max)
@@ -184,7 +186,10 @@ export function configFromEnv(env) {
     gptModel,
     jevModel,
     openaiKey: env.OPENAI_API_KEY || "",
-    jevKey: env.TYPESAFE_API_KEY || "",
+    jevProvider,
+    jevAccount,
+    jevKey:
+      (jevProvider === "cloudflare" ? env.JEV_CLOUDFLARE_API_TOKEN : env.TYPESAFE_API_KEY) || "",
     jevEnabled: env.AI_JEV_ENABLED === "true",
     inputRate: numeric("GPT_INPUT_USD_PER_MILLION", 2.5, 100),
     outputRate: numeric("GPT_OUTPUT_USD_PER_MILLION", 15, 500),
@@ -251,6 +256,41 @@ export function emptyReport(context, status, reason) {
   };
 }
 
+// Shared direct/Cloudflare transport. Endpoints are never supplied by source or model output.
+export async function callJev(body, cfg, fetcher = fetch) {
+  if (!["typesafe", "cloudflare"].includes(cfg.jevProvider))
+    throw new Error("Unknown Jev provider");
+  if (cfg.jevProvider === "cloudflare" && !/^[a-f0-9]{32}$/.test(cfg.jevAccount))
+    throw new Error("Invalid Jev Cloudflare account");
+  const cloudflare = cfg.jevProvider === "cloudflare";
+  const request = cloudflare
+    ? { model: "typesafe/jev", input: { state: body.state, questions: body.questions } }
+    : body;
+  const envelope = await boundedJson(
+    await fetcher(
+      cloudflare
+        ? "https://api.cloudflare.com/client/v4/accounts/" + cfg.jevAccount + "/ai/run"
+        : "https://api.typesafe.ai/v1/systemone",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + cfg.jevKey,
+          "Content-Type": "application/json",
+          ...(cloudflare ? { "cf-aig-skip-cache": "true", "cf-aig-collect-log": "false" } : {}),
+        },
+        body: JSON.stringify(request),
+        signal: AbortSignal.timeout(LIMITS.timeoutMs),
+        redirect: "error",
+      },
+    ),
+  );
+  if (cloudflare && (envelope.success !== true || envelope.result?.state !== "Completed"))
+    throw new Error("Cloudflare Jev did not complete");
+  const raw = cloudflare ? envelope.result.result : envelope;
+  if (raw.model !== cfg.jevModel) throw new Error("Unexpected Jev model version");
+  return raw;
+}
+
 export async function review(context, cfg, fetcher = fetch) {
   let result = emptyReport(context, "unavailable", "OpenAI project credential is not configured.");
   const serialized = JSON.stringify(context);
@@ -265,7 +305,13 @@ export async function review(context, cfg, fetcher = fetch) {
     boundedJson(
       await fetcher(url, {
         method: "POST",
-        headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+        headers: {
+          Authorization: "Bearer " + key,
+          "Content-Type": "application/json",
+          ...(url.startsWith("https://api.cloudflare.com/")
+            ? { "cf-aig-skip-cache": "true", "cf-aig-collect-log": "false" }
+            : {}),
+        },
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(LIMITS.timeoutMs),
         redirect: "error",
@@ -313,7 +359,7 @@ export async function review(context, cfg, fetcher = fetch) {
     else if (cfg.jevKey) {
       const start = performance.now();
       try {
-        const raw = await post("https://api.typesafe.ai/v1/systemone", cfg.jevKey, jevBody);
+        const raw = await callJev(jevBody, cfg, fetcher);
         text(raw.model, 100);
         exactKeys(raw.answers, ["sensitive", "test_gap"]);
         for (const answer of Object.values(raw.answers)) {

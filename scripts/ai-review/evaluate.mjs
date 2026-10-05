@@ -39,7 +39,12 @@ export async function evaluate({ live = false, env = {}, fetcher = fetch } = {})
   const labels = JSON.parse(await readFile(new URL("expected.json", fixtureRoot), "utf8"));
   const mocks = JSON.parse(await readFile(new URL("mock-responses.json", fixtureRoot), "utf8"));
   if (contexts.length > 10) throw new Error("Evaluation fixture bound exceeded");
-  if (live && (env.AI_EVAL_LIVE !== "true" || !env.OPENAI_API_KEY || !env.TYPESAFE_API_KEY))
+  if (
+    live &&
+    (env.AI_EVAL_LIVE !== "true" ||
+      !env.OPENAI_API_KEY ||
+      !(env.JEV_PROVIDER === "cloudflare" ? env.JEV_CLOUDFLARE_API_TOKEN : env.TYPESAFE_API_KEY))
+  )
     throw new Error(
       "Live A/B evaluation requires explicit opt-in and both project-scoped credentials",
     );
@@ -116,6 +121,7 @@ export async function evaluate({ live = false, env = {}, fetcher = fetch } = {})
     config: {
       gptModel: cfg.gptModel,
       jevModel: cfg.jevModel,
+      jevProvider: cfg.jevProvider,
       maxOutputTokens: LIMITS.outputTokens,
       maxCallsPerArm: 2,
       timeoutMs: LIMITS.timeoutMs,

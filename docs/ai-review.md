@@ -1,6 +1,6 @@
 # Advisory AI review
 
-GPT is the primary reviewer; Jev is an optional experiment, disabled by default. Neither changes the required `validate` gate, approves a PR, merges, deploys, or edits code. AI review can miss bugs. No paid provider call was made during implementation; project credentials and live model quality remain unverified.
+GPT is the primary reviewer; Jev is an optional experiment, disabled by default. Neither changes the required `validate` gate, approves a PR, merges, deploys, or edits code. AI review can miss bugs. The original 2026-10-04 implementation used mocks only. Live Jev evidence and remaining OpenAI activation are recorded in the 2026-10-05 follow-up below.
 
 ## Trust boundary
 
@@ -73,3 +73,36 @@ A live run additionally requires `--live`, `AI_EVAL_LIVE=true`, both explicit pr
 Location matching produces **candidate** detected/missed/false-positive counts. It is not a semantic quality oracle. A human must read source and the independent label, confirm actual bug meaning, and fill actionability/evidence quality using the included 0–2 rubric. Unmatched findings can be legitimate additional bugs; matching the right line alone can still be wrong. Compare prompt-injection behavior, incomplete statuses, human-confirmed detections/misses/false positives, quality, actual billed usage and latency. Report unavailable/failed arms instead of interpreting them as clean reviews. Repeat live runs if judging stability.
 
 Implementation verification: thirteen focused tests cover source and output boundaries, Jev failure fallback, unavailable credentials, budget rejection, idempotent/stale publication, refusals, accounting-error redaction, and fixture scoring. The mock CLI produced all fourteen expected arm results. These results establish integration behavior only. **There is no measured evidence yet that Jev improves quality enough to justify enabling it by default.**
+
+## Live Jev follow-up — 2026-10-05
+
+The first live tests now use the verified [Cloudflare Jev route](https://developers.cloudflare.com/ai/models/typesafe/jev/), billed through [AI Gateway](https://developers.cloudflare.com/ai-gateway/features/unified-billing/). Returned model: `jev-1.13.0`. No separate TypeSafe key was needed for these local experiments.
+
+Set `JEV_PROVIDER=cloudflare`, `JEV_CLOUDFLARE_ACCOUNT_ID`, and a dedicated inference-only `JEV_CLOUDFLARE_API_TOKEN` in the AI review environment to select this transport. The default transport remains direct TypeSafe. Do not reuse the production deployment token or upload a personal Wrangler OAuth token to CI. The local experiment used existing Wrangler authentication in memory; no token appears in Git, command arguments or reports. Cloudflare requests disable cache/log collection via request headers, reject redirects, require a completed success envelope and verify the returned model version. The gateway catalog alias is not version-pinned; a version mismatch fails the optional Jev stage while GPT continues.
+
+### Measured evidence
+
+| Trial                                   | Result                                                                                                                      | Returned input / output tokens | Estimated inference cost | Sum of request time |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ------------------------ | ------------------- |
+| Jev binary bug triage                   | Five introduced-bug cases and one clean case classified correctly at predefined 0.5 threshold; incomplete case made no call | 3,958 / 138                    | $0.000166                | 2.279 s             |
+| Repository fragment triage at `047ef3c` | 93/93 fragments covering 83 source/config files; 27 exclusions explicitly listed                                            | 120,917 / 5,301                | $0.005079                | 27.502 s            |
+
+Costs use the published $0.042/M input rate and free output, not an invoice. The first repository pass excluded JSONC by mistake; the filter was fixed, regression-tested and the scan rerun including Wrangler configuration. The table reports the corrected run, not the first pass.
+
+This is a small exploratory classification trial, not evidence of general bug-detection accuracy. The repository scan has no independent complete bug ground truth; its scores cannot establish correctness, localization, false-positive rate or cross-file reasoning. High-priority fragments included deliberately broken fixtures and sensitive membership code. A fragment score is not a publishable bug finding.
+
+**GPT-alone versus Jev-assisted GPT remains unmeasured while the OpenAI project key is pending. No token savings or improvement over GPT has been demonstrated.** Existing paired evaluation uses identical original context and therefore adds Jev input rather than reducing GPT input by design. Keep the default advisory switch off until the paired run and semantic review support a default change. The implemented useful placement is inexpensive review prioritization; it never removes source, skips tests or approves a merge.
+
+### Reproduce the trials
+
+With scoped credentials injected privately, run:
+
+```sh
+AI_EVAL_LIVE=true node scripts/ai-review/evaluate-jev.mjs
+node scripts/ai-review/repository-triage.mjs
+AI_EVAL_LIVE=true node scripts/ai-review/evaluate.mjs --live
+```
+
+The first command preserves raw typed answers and source hashes for the independent fixtures, with <=10 calls and a $0.02 conservative reservation. The repository command reads a single immutable Git commit, covers supported authored source and configuration including JSONC, records exclusions and file hashes, splits without truncating source lines, and allows <=120 calls with a $0.10 reservation. Three consecutive failures stop inference and produce explicit not-attempted entries for every remaining fragment. Failed calls have unknown billing; reserve is not silently treated as zero. Each fragment receives only its bounded source, so cross-file validation still belongs to GPT/human review with original context and to deterministic tests.
+
+Outputs stay under ignored `ai-review-output/`. Local live reports and raw responses were retained there; no provider credentials were embedded. The local OpenAI entry form stores its key mode 0600 outside Git on the mini and closes after successful submission. It does not activate GitHub secrets or deploy anything.
