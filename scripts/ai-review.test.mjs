@@ -416,7 +416,7 @@ test("Cloudflare Jev rejects URL injection without preventing GPT review", async
     let calls = 0;
     const result = await review(context, invalid, async (url) => {
       calls++;
-      assert.match(url, /^https:\/\/api.openai.com\//);
+      assert.equal(url, "https://api.openai.com/v1/responses");
       return response(gptResponse());
     });
     assert.equal(result.status, "completed");

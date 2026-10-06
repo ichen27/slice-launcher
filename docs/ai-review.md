@@ -114,3 +114,7 @@ Ivan selected Cloudflare for GPT and Jev, with exact model GPT-6 Sol. The workfl
 Live paired test: 12/12 GPT calls and 6/6 Jev calls completed. Both arms found the five seeded bugs with valid source evidence, returned no findings on the clean refactor, and made no calls for incomplete context. These are deliberately small fixtures, not general accuracy evidence. Both arms receive identical original source; this test demonstrates no Jev detection advantage or token savings. Jev remains optional and disabled by default. Raw responses and reports remain in ignored `ai-review-output/`; GitHub activation still requires scoped credentials and the approved merge.
 
 Billing reference: [Cloudflare unified billing](https://developers.cloudflare.com/ai-gateway/features/unified-billing/). ChatGPT/Codex and API balances are separate from Cloudflare credits.
+
+## Architecture comparison pilot — 2026-10-06
+
+See [the experiment report](experiments/2026-10-06-jev-architecture-results.md) for actual-module seeded detection and repair-selection tests. GPT alone and Jev-assisted GPT each identified six seeded issues and preserved both clean controls. Jev missed the directory privacy case at the predefined routing threshold; do not use low-risk scores to skip sensitive review. The small candidate-assisted pilot does not establish full-codebase accuracy or automatic patch reliability.
