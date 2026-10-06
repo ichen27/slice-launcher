@@ -1,6 +1,6 @@
 # Advisory AI review
 
-GPT is the primary reviewer; Jev is an optional experiment, disabled by default. Neither changes the required `validate` gate, approves a PR, merges, deploys, or edits code. AI review can miss bugs. The original 2026-10-04 implementation used mocks only. The current primary route is Cloudflare GPT-6 Sol (2026-10-06); GitHub activation remains pending.
+GPT-6 Sol through Cloudflare is the primary reviewer. The PR workflow fixes `AI_JEV_ENABLED=false` and receives no Jev credential; Jev remains available only in explicitly invoked experiments. Neither changes the required `validate` gate, approves a PR, merges, deploys, or edits code. AI review can miss bugs. The original 2026-10-04 implementation used mocks only. The current primary route is Cloudflare GPT-6 Sol (2026-10-06); GitHub activation remains pending.
 
 ## Trust boundary
 
@@ -48,19 +48,19 @@ Jev receives changed patches, never credentials. Its output must be exactly the 
 ## Activation and bootstrap
 
 1. Merge only after the user approves the completed PR. Because review code is taken from protected base, this first PR cannot exercise its new privileged workflow from contributor code. Its mocks and unprivileged checks exercise the implementation. After merge, dispatch a representative PR from main and verify the actual comment and accounting artifact.
-2. Create GitHub environment `ai-review`, restrict deployment branches to protected main, and add a dedicated inference-only `GPT_CLOUDFLARE_API_TOKEN` plus `GPT_CLOUDFLARE_ACCOUNT_ID`. For Jev use `JEV_PROVIDER=cloudflare`, `JEV_CLOUDFLARE_ACCOUNT_ID`, and `JEV_CLOUDFLARE_API_TOKEN`. Do not reuse deployment credentials or upload personal Wrangler OAuth credentials. Configure keys in the provider/GitHub UI; never paste them into chat or commit them.
-3. Configure environment/repository variables below. Keep `AI_JEV_ENABLED` false until evaluation supports it. Set provider project spending limits.
+2. Create GitHub environment `ai-review`, restrict deployment branches to protected main, and add a dedicated inference-only `GPT_CLOUDFLARE_API_TOKEN` plus `GPT_CLOUDFLARE_ACCOUNT_ID`. For local experiments only, use `JEV_PROVIDER=cloudflare`, `JEV_CLOUDFLARE_ACCOUNT_ID`, and `JEV_CLOUDFLARE_API_TOKEN`; the PR workflow does not receive these values. Do not reuse deployment credentials or upload personal Wrangler OAuth credentials. Configure keys in the provider/GitHub UI; never paste them into chat or commit them.
+3. Configure environment/repository variables below. The PR workflow fixes `AI_JEV_ENABLED=false`; a repository variable cannot enable Jev. Set provider project spending limits.
 4. Exercise same-repository and fork PRs. Verify protected code is used, comments stay tied to head SHA, failures remain advisory, and required CI still blocks independently.
 5. Run and manually score the live A/B evaluation before deciding to make Jev standard.
 
-| Variable                                                   | Default / rule                     |
-| ---------------------------------------------------------- | ---------------------------------- |
-| `OPENAI_REVIEW_MODEL`                                      | `gpt-6-sol` (fixed in workflow)    |
-| `TYPESAFE_REVIEW_MODEL`                                    | `jev-1.13.0`                       |
-| `AI_JEV_ENABLED`                                           | Disabled unless exactly `true`     |
-| `AI_MAX_USD`                                               | `1`; positive and no higher than 1 |
-| `GPT_INPUT_USD_PER_MILLION` / `GPT_OUTPUT_USD_PER_MILLION` | Required for nondefault GPT model  |
-| `JEV_INPUT_USD_PER_MILLION`                                | Required for nondefault Jev model  |
+| Variable                                                   | Default / rule                                         |
+| ---------------------------------------------------------- | ------------------------------------------------------ |
+| `OPENAI_REVIEW_MODEL`                                      | `gpt-6-sol` (fixed in workflow)                        |
+| `TYPESAFE_REVIEW_MODEL`                                    | `jev-1.13.0`                                           |
+| `AI_JEV_ENABLED`                                           | Fixed `false` in PR workflow; local experiments opt in |
+| `AI_MAX_USD`                                               | `1`; positive and no higher than 1                     |
+| `GPT_INPUT_USD_PER_MILLION` / `GPT_OUTPUT_USD_PER_MILLION` | Required for nondefault GPT model                      |
+| `JEV_INPUT_USD_PER_MILLION`                                | Required for nondefault Jev model                      |
 
 ## Reproducible A/B evaluation
 
@@ -118,3 +118,9 @@ Billing reference: [Cloudflare unified billing](https://developers.cloudflare.co
 ## Architecture comparison pilot — 2026-10-06
 
 See [the experiment report](experiments/2026-10-06-jev-architecture-results.md) for actual-module seeded detection and repair-selection tests. GPT alone and Jev-assisted GPT each identified six seeded issues and preserved both clean controls. Jev missed the directory privacy case at the predefined routing threshold; do not use low-risk scores to skip sensitive review. The small candidate-assisted pilot does not establish full-codebase accuracy or automatic patch reliability.
+
+## Accepted operating policy — 2026-10-06
+
+Ivan accepted the experiment-based recommendation: required deterministic checks for standards and known invariants; GPT-6 Sol via Cloudflare for advisory source-grounded review; Jev restricted to opt-in experiments. Jev cannot skip code, waive checks or authorize changes. Future model-proposed fixes must pass independent regression tests and ordinary project checks before human review. No automatic correction or merge is enabled.
+
+The PR workflow now explicitly disables Jev and removes its credential/configuration injection. Experimental commands remain available for future held-out evaluations. Activation still requires the dedicated Cloudflare inference credential and approval to merge the foundation PR.
