@@ -42,7 +42,9 @@ export async function evaluate({ live = false, env = {}, fetcher = fetch } = {})
   if (
     live &&
     (env.AI_EVAL_LIVE !== "true" ||
-      !env.OPENAI_API_KEY ||
+      !((env.GPT_PROVIDER || "cloudflare") === "cloudflare"
+        ? env.GPT_CLOUDFLARE_API_TOKEN
+        : env.OPENAI_API_KEY) ||
       !(env.JEV_PROVIDER === "cloudflare" ? env.JEV_CLOUDFLARE_API_TOKEN : env.TYPESAFE_API_KEY))
   )
     throw new Error(
@@ -51,7 +53,12 @@ export async function evaluate({ live = false, env = {}, fetcher = fetch } = {})
   const cfg = configFromEnv(
     live
       ? { ...env, AI_JEV_ENABLED: "true" }
-      : { OPENAI_API_KEY: "mock", TYPESAFE_API_KEY: "mock", AI_JEV_ENABLED: "true" },
+      : {
+          GPT_PROVIDER: "openai",
+          OPENAI_API_KEY: "mock",
+          TYPESAFE_API_KEY: "mock",
+          AI_JEV_ENABLED: "true",
+        },
   );
   // Conservative preflight budget for every arm, includes full output limit on every call.
   const worstUsd = contexts.reduce(
@@ -60,8 +67,8 @@ export async function evaluate({ live = false, env = {}, fetcher = fetch } = {})
       (2 *
         ((Buffer.byteLength(JSON.stringify(context) + PROMPT + JSON.stringify(OUTPUT_SCHEMA)) +
           4096) *
-          cfg.inputRate +
-          LIMITS.outputTokens * cfg.outputRate +
+          cfg.reserveInputRate +
+          LIMITS.outputTokens * cfg.reserveOutputRate +
           28048 * cfg.jevRate)) /
         1e6,
     0,
@@ -120,6 +127,7 @@ export async function evaluate({ live = false, env = {}, fetcher = fetch } = {})
     createdAt: new Date().toISOString(),
     config: {
       gptModel: cfg.gptModel,
+      gptProvider: cfg.gptProvider,
       jevModel: cfg.jevModel,
       jevProvider: cfg.jevProvider,
       maxOutputTokens: LIMITS.outputTokens,

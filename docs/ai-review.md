@@ -1,6 +1,6 @@
 # Advisory AI review
 
-GPT is the primary reviewer; Jev is an optional experiment, disabled by default. Neither changes the required `validate` gate, approves a PR, merges, deploys, or edits code. AI review can miss bugs. The original 2026-10-04 implementation used mocks only. Live Jev evidence and remaining OpenAI activation are recorded in the 2026-10-05 follow-up below.
+GPT is the primary reviewer; Jev is an optional experiment, disabled by default. Neither changes the required `validate` gate, approves a PR, merges, deploys, or edits code. AI review can miss bugs. The original 2026-10-04 implementation used mocks only. The current primary route is Cloudflare GPT-6 Sol (2026-10-06); GitHub activation remains pending.
 
 ## Trust boundary
 
@@ -35,27 +35,27 @@ Hard bounds in trusted code:
 
 The preflight reserves both calls before spending, using UTF-8 byte count as a conservative token upper bound, framing/schema reserves, configured input rates, and the full GPT output allowance. The rates must match current provider billing. Network failures can still incur provider charges; missing usage is **unknown** (`estimatedUsd: null`), not free. Job timeouts and provider project spending limits provide additional limits. Frequent PR events/reruns multiply spend, so set provider-level monthly limits. No per-run cap substitutes for a monthly project limit.
 
-Verified official documentation on 2026-10-04:
+Provider documentation (GPT route updated 2026-10-06):
 
-- [OpenAI GPT-5.4](https://developers.openai.com/api/docs/models/gpt-5.4): default pinned `gpt-5.4-2026-03-05`; $2.50/M input and $15/M output under the standard context tier used here. Strict Responses structured output; `store: false`.
+- [Cloudflare GPT-6 Sol](https://developers.cloudflare.com/ai/models/openai/gpt-6-sol/): `openai/gpt-6-sol` through account-scoped `/ai/v1/responses`. Strict structured output; `store: false`, no tools or redirects. Returned model must match; no fallback. This catalog alias is not an immutable dated snapshot. Short-context estimates use $2/M input and $10/M output; reservations use the highest published $5/M input/cache-write and $15/M output rates.
 - [TypeSafe API](https://docs.typesafe.ai/api): `POST https://api.typesafe.ai/v1/systemone`; fixed `state` and typed `questions`. Two Noul questions ask about sensitive boundaries and test priorities.
 - [TypeSafe models](https://docs.typesafe.ai/models): default pinned `jev-1.13.0`; $0.042/M input, output free; 32k tokens for state plus longest question and 64k aggregate.
 
-Example assumption: 20,000 GPT input tokens and 2,000 output tokens cost about **$0.08**; 10,000 Jev input tokens add **$0.00042**. This is an estimate, not measured usage. OpenAI API billing is separate from ChatGPT/Codex subscriptions. Account access/credits must be checked in the provider projects. No Cloudflare AI Gateway or Workers AI integration is assumed or required.
+Example assumption: 20,000 GPT input tokens and 2,000 output tokens cost about **$0.06**; 10,000 Jev input tokens add **$0.00042**. This is an estimate, not measured usage. OpenAI API billing is separate from ChatGPT/Codex subscriptions. Account access/credits must be checked in the provider projects. Cloudflare unified billing funds the selected route; no OpenAI key is needed. Token estimates exclude cache discounts and the 5% Cloudflare credit-purchase fee; they are not invoices.
 
 Jev receives changed patches, never credentials. Its output must be exactly the two typed numeric answers. GPT independently receives all original source/context and may also receive those optional answers. Jev failure cannot suppress GPT, discard source, or skip security review. Unknown models require explicit current pricing configuration.
 
 ## Activation and bootstrap
 
 1. Merge only after the user approves the completed PR. Because review code is taken from protected base, this first PR cannot exercise its new privileged workflow from contributor code. Its mocks and unprivileged checks exercise the implementation. After merge, dispatch a representative PR from main and verify the actual comment and accounting artifact.
-2. Create GitHub environment `ai-review`, restrict deployment branches to protected main, and add **project-scoped** `OPENAI_API_KEY`. Add `TYPESAFE_API_KEY` only when running the Jev experiment. Configure keys in the provider/GitHub UI; never paste them into chat or commit them.
+2. Create GitHub environment `ai-review`, restrict deployment branches to protected main, and add a dedicated inference-only `GPT_CLOUDFLARE_API_TOKEN` plus `GPT_CLOUDFLARE_ACCOUNT_ID`. For Jev use `JEV_PROVIDER=cloudflare`, `JEV_CLOUDFLARE_ACCOUNT_ID`, and `JEV_CLOUDFLARE_API_TOKEN`. Do not reuse deployment credentials or upload personal Wrangler OAuth credentials. Configure keys in the provider/GitHub UI; never paste them into chat or commit them.
 3. Configure environment/repository variables below. Keep `AI_JEV_ENABLED` false until evaluation supports it. Set provider project spending limits.
 4. Exercise same-repository and fork PRs. Verify protected code is used, comments stay tied to head SHA, failures remain advisory, and required CI still blocks independently.
 5. Run and manually score the live A/B evaluation before deciding to make Jev standard.
 
 | Variable                                                   | Default / rule                     |
 | ---------------------------------------------------------- | ---------------------------------- |
-| `OPENAI_REVIEW_MODEL`                                      | `gpt-5.4-2026-03-05`               |
+| `OPENAI_REVIEW_MODEL`                                      | `gpt-6-sol` (fixed in workflow)    |
 | `TYPESAFE_REVIEW_MODEL`                                    | `jev-1.13.0`                       |
 | `AI_JEV_ENABLED`                                           | Disabled unless exactly `true`     |
 | `AI_MAX_USD`                                               | `1`; positive and no higher than 1 |
@@ -66,9 +66,9 @@ Jev receives changed patches, never credentials. Its output must be exactly the 
 
 Run `node scripts/ai-review/evaluate.mjs` for a **mock integration** run. Seven deliberately constructed fixtures cover active membership, deny precedence, audit atomicity, a secret-bearing workflow, prompt injection, a clean refactor, and incomplete context. Independent expected labels live in `fixtures/expected.json`; providers receive only `fixtures/contexts.json`. Fixed mock responses are a third file. The SHA-256 of the original context is recorded for each arm.
 
-A uses GPT alone. B uses Jev plus the same GPT prompt, original context, pinned model, output limit, timeout and per-review budget. Jev is an additional bounded cost. The runner records findings, provider usage/estimated cost, latency, and statuses. It preflights the entire run against a hard $3 reservation and allows at most ten fixtures (two arms each), with no retries. Current fixture counts are seven, yielding fourteen arm results; incomplete fixtures cause no provider calls.
+A uses GPT alone. B uses Jev plus the same GPT prompt, original context, exact requested model, output limit, timeout and per-review budget. Jev is an additional bounded cost. The runner records findings, provider usage/estimated cost, latency, and statuses. It preflights the entire run against a hard $3 reservation and allows at most ten fixtures (two arms each), with no retries. Current fixture counts are seven, yielding fourteen arm results; incomplete fixtures cause no provider calls.
 
-A live run additionally requires `--live`, `AI_EVAL_LIVE=true`, both explicit project-scoped provider keys in the shell environment, and sufficient budget. Do not source unrelated keys. `AI_EVAL_MAX_USD` may lower the $3 total cap. Output is written to `ai-review-output/evaluation-live.json`; keep it out of Git.
+A live run additionally requires `--live`, `AI_EVAL_LIVE=true`, explicit credentials for both provider routes in the shell environment, and sufficient budget. Do not source unrelated keys. `AI_EVAL_MAX_USD` may lower the $3 total cap. Output is written to `ai-review-output/evaluation-live.json`; keep it out of Git.
 
 Location matching produces **candidate** detected/missed/false-positive counts. It is not a semantic quality oracle. A human must read source and the independent label, confirm actual bug meaning, and fill actionability/evidence quality using the included 0–2 rubric. Unmatched findings can be legitimate additional bugs; matching the right line alone can still be wrong. Compare prompt-injection behavior, incomplete statuses, human-confirmed detections/misses/false positives, quality, actual billed usage and latency. Report unavailable/failed arms instead of interpreting them as clean reviews. Repeat live runs if judging stability.
 
@@ -91,7 +91,7 @@ Costs use the published $0.042/M input rate and free output, not an invoice. The
 
 This is a small exploratory classification trial, not evidence of general bug-detection accuracy. The repository scan has no independent complete bug ground truth; its scores cannot establish correctness, localization, false-positive rate or cross-file reasoning. High-priority fragments included deliberately broken fixtures and sensitive membership code. A fragment score is not a publishable bug finding.
 
-**GPT-alone versus Jev-assisted GPT remains unmeasured while the OpenAI project key is pending. No token savings or improvement over GPT has been demonstrated.** Existing paired evaluation uses identical original context and therefore adds Jev input rather than reducing GPT input by design. Keep the default advisory switch off until the paired run and semantic review support a default change. The implemented useful placement is inexpensive review prioritization; it never removes source, skips tests or approves a merge.
+**Historical status on 2026-10-05: the paired GPT comparison was pending an OpenAI key.** The Cloudflare route below removes that requirement. Existing paired evaluation uses identical original context and therefore adds Jev input rather than reducing GPT input by design. Keep the default advisory switch off until the paired run and semantic review support a default change. The implemented useful placement is inexpensive review prioritization; it never removes source, skips tests or approves a merge.
 
 ### Reproduce the trials
 
@@ -106,3 +106,11 @@ AI_EVAL_LIVE=true node scripts/ai-review/evaluate.mjs --live
 The first command preserves raw typed answers and source hashes for the independent fixtures, with <=10 calls and a $0.02 conservative reservation. The repository command reads a single immutable Git commit, covers supported authored source and configuration including JSONC, records exclusions and file hashes, splits without truncating source lines, and allows <=120 calls with a $0.10 reservation. Three consecutive failures stop inference and produce explicit not-attempted entries for every remaining fragment. Failed calls have unknown billing; reserve is not silently treated as zero. Each fragment receives only its bounded source, so cross-file validation still belongs to GPT/human review with original context and to deterministic tests.
 
 Outputs stay under ignored `ai-review-output/`. Local live reports and raw responses were retained there; no provider credentials were embedded. The local OpenAI entry form stores its key mode 0600 outside Git on the mini and closes after successful submission. It does not activate GitHub secrets or deploy anything.
+
+## Cloudflare primary reviewer — 2026-10-06
+
+Ivan selected Cloudflare for GPT and Jev, with exact model GPT-6 Sol. The workflow fixes `GPT_PROVIDER=cloudflare` and `OPENAI_REVIEW_MODEL=gpt-6-sol`. Account IDs are validated before provider calls. Local tooling retains direct OpenAI support only via explicit `GPT_PROVIDER=openai`; no OpenAI key is injected into the GitHub workflow. Missing credentials, unexpected model identity, incomplete output and invalid evidence produce explicit unavailable/failed/incomplete reports.
+
+Live paired test: 12/12 GPT calls and 6/6 Jev calls completed. Both arms found the five seeded bugs with valid source evidence, returned no findings on the clean refactor, and made no calls for incomplete context. These are deliberately small fixtures, not general accuracy evidence. Both arms receive identical original source; this test demonstrates no Jev detection advantage or token savings. Jev remains optional and disabled by default. Raw responses and reports remain in ignored `ai-review-output/`; GitHub activation still requires scoped credentials and the approved merge.
+
+Billing reference: [Cloudflare unified billing](https://developers.cloudflare.com/ai-gateway/features/unified-billing/). ChatGPT/Codex and API balances are separate from Cloudflare credits.

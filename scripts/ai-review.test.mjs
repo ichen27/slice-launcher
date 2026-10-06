@@ -46,6 +46,7 @@ const finding = {
 };
 const output = { status: "completed", findings: [finding] };
 const cfg = configFromEnv({
+  GPT_PROVIDER: "openai",
   OPENAI_API_KEY: "test-key",
   TYPESAFE_API_KEY: "test-key",
   AI_JEV_ENABLED: "true",
@@ -353,6 +354,7 @@ test("a base-only advance invalidates a published review", async () => {
 test("Cloudflare Jev uses a fixed account endpoint and preserves original GPT context", async () => {
   const account = "a".repeat(32);
   const cloud = configFromEnv({
+    GPT_PROVIDER: "openai",
     OPENAI_API_KEY: "openai-test",
     AI_JEV_ENABLED: "true",
     JEV_PROVIDER: "cloudflare",
@@ -398,6 +400,7 @@ test("Cloudflare Jev rejects URL injection without preventing GPT review", async
     { JEV_PROVIDER: "cloudflare" },
   ]) {
     const invalid = configFromEnv({
+      GPT_PROVIDER: "openai",
       OPENAI_API_KEY: "test",
       AI_JEV_ENABLED: "true",
       TYPESAFE_API_KEY: "test",
@@ -421,6 +424,7 @@ test("Cloudflare Jev rejects URL injection without preventing GPT review", async
     assert.equal(calls, 1);
   }
   const disabled = configFromEnv({
+    GPT_PROVIDER: "openai",
     OPENAI_API_KEY: "test",
     AI_JEV_ENABLED: "false",
     JEV_PROVIDER: "cloudflare",
@@ -429,4 +433,97 @@ test("Cloudflare Jev rejects URL injection without preventing GPT review", async
     (await review(context, disabled, async () => response(gptResponse()))).status,
     "completed",
   );
+});
+
+test("Cloudflare GPT uses the exact model, strict outputs and inference credential", async () => {
+  const cloud = configFromEnv({
+    GPT_CLOUDFLARE_ACCOUNT_ID: "a".repeat(32),
+    GPT_CLOUDFLARE_API_TOKEN: "cf-test",
+  });
+  let calls = 0;
+  const result = await review(context, cloud, async (url, options) => {
+    calls++;
+    assert.equal(
+      url,
+      "https://api.cloudflare.com/client/v4/accounts/" + "a".repeat(32) + "/ai/v1/responses",
+    );
+    const body = JSON.parse(options.body);
+    assert.equal(body.model, "openai/gpt-6-sol");
+    assert.equal(body.store, false);
+    assert.deepEqual(body.tools, []);
+    assert.equal(body.text.format.strict, true);
+    assert.equal(options.headers.Authorization, "Bearer cf-test");
+    assert.equal(options.headers["cf-aig-collect-log"], "false");
+    assert.equal(options.redirect, "error");
+    return response({ ...gptResponse(), model: "openai/gpt-6-sol" });
+  });
+  assert.equal(calls, 1);
+  assert.equal(result.status, "completed");
+  assert.equal(result.gpt.model, "openai/gpt-6-sol");
+});
+
+test("Cloudflare GPT fails closed on invalid account, missing key and model substitution", async () => {
+  assert.throws(() => configFromEnv({ GPT_PROVIDER: "attacker" }), /Unknown GPT/);
+  for (const account of ["", "../evil", "https://evil.test"]) {
+    const cfg = configFromEnv({
+      GPT_CLOUDFLARE_ACCOUNT_ID: account,
+      GPT_CLOUDFLARE_API_TOKEN: "test",
+    });
+    assert.equal(
+      (
+        await review(context, cfg, () => {
+          throw new Error("must not call");
+        })
+      ).status,
+      "failed",
+    );
+  }
+  const cloud = configFromEnv({
+    GPT_CLOUDFLARE_ACCOUNT_ID: "a".repeat(32),
+    GPT_CLOUDFLARE_API_TOKEN: "test",
+  });
+  assert.equal((await review(context, { ...cloud, gptKey: "" })).status, "unavailable");
+  const result = await review(context, cloud, async () =>
+    response({ ...gptResponse(), model: "gpt-6-luna" }),
+  );
+  assert.equal(result.status, "failed");
+  assert.deepEqual(result.findings, []);
+});
+
+test("live paired evaluation accepts Cloudflare-only credentials", async () => {
+  const report = await evaluate({
+    live: true,
+    env: {
+      AI_EVAL_LIVE: "true",
+      GPT_CLOUDFLARE_ACCOUNT_ID: "a".repeat(32),
+      GPT_CLOUDFLARE_API_TOKEN: "test",
+      JEV_PROVIDER: "cloudflare",
+      JEV_CLOUDFLARE_ACCOUNT_ID: "a".repeat(32),
+      JEV_CLOUDFLARE_API_TOKEN: "test",
+    },
+    fetcher: async (url) => {
+      if (url.endsWith("/ai/run"))
+        return response({
+          success: true,
+          result: {
+            state: "Completed",
+            result: {
+              model: "jev-1.13.0",
+              answers: {
+                sensitive: { type: "noul", noul: 0.5 },
+                test_gap: { type: "noul", noul: 0.5 },
+              },
+              usage: { input_tokens: 10, output_tokens: 10 },
+            },
+          },
+        });
+      return response({
+        ...gptResponse({ status: "completed", findings: [] }),
+        model: "gpt-6-sol",
+      });
+    },
+  });
+  assert.equal(report.config.gptProvider, "cloudflare");
+  assert.equal(report.config.gptModel, "gpt-6-sol");
+  assert.ok(report.runs.every((run) => ["completed", "incomplete"].includes(run.result.status)));
 });

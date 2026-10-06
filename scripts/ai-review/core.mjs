@@ -165,7 +165,10 @@ export function validateFindings(value, context) {
 }
 
 export function configFromEnv(env) {
-  const gptModel = env.OPENAI_REVIEW_MODEL || "gpt-5.4-2026-03-05";
+  const gptProvider = env.GPT_PROVIDER || "cloudflare";
+  if (!["cloudflare", "openai"].includes(gptProvider)) throw new Error("Unknown GPT provider");
+  const gptAccount = env.GPT_CLOUDFLARE_ACCOUNT_ID || "";
+  const gptModel = env.OPENAI_REVIEW_MODEL || "gpt-6-sol";
   const jevModel = env.TYPESAFE_REVIEW_MODEL || "jev-1.13.0";
   const jevProvider = env.JEV_PROVIDER || "typesafe";
   const jevAccount = env.JEV_CLOUDFLARE_ACCOUNT_ID || "";
@@ -176,7 +179,7 @@ export function configFromEnv(env) {
     return value;
   };
   if (
-    gptModel !== "gpt-5.4-2026-03-05" &&
+    !["gpt-6-sol", "gpt-5.4-2026-03-05"].includes(gptModel) &&
     (!env.GPT_INPUT_USD_PER_MILLION || !env.GPT_OUTPUT_USD_PER_MILLION)
   )
     throw new Error("Explicit current model prices required");
@@ -185,14 +188,26 @@ export function configFromEnv(env) {
   return {
     gptModel,
     jevModel,
-    openaiKey: env.OPENAI_API_KEY || "",
+    gptProvider,
+    gptAccount,
+    gptKey:
+      (gptProvider === "cloudflare" ? env.GPT_CLOUDFLARE_API_TOKEN : env.OPENAI_API_KEY) || "",
     jevProvider,
     jevAccount,
     jevKey:
       (jevProvider === "cloudflare" ? env.JEV_CLOUDFLARE_API_TOKEN : env.TYPESAFE_API_KEY) || "",
     jevEnabled: env.AI_JEV_ENABLED === "true",
-    inputRate: numeric("GPT_INPUT_USD_PER_MILLION", 2.5, 100),
-    outputRate: numeric("GPT_OUTPUT_USD_PER_MILLION", 15, 500),
+    inputRate: numeric("GPT_INPUT_USD_PER_MILLION", gptModel === "gpt-6-sol" ? 2 : 2.5, 100),
+    outputRate: numeric("GPT_OUTPUT_USD_PER_MILLION", gptModel === "gpt-6-sol" ? 10 : 15, 500),
+    // Reserve the highest published tier, including cache writes.
+    reserveInputRate: Math.max(
+      gptModel === "gpt-6-sol" ? 5 : 0,
+      numeric("GPT_INPUT_USD_PER_MILLION", 2.5, 100),
+    ),
+    reserveOutputRate: Math.max(
+      gptModel === "gpt-6-sol" ? 15 : 0,
+      numeric("GPT_OUTPUT_USD_PER_MILLION", 15, 500),
+    ),
     jevRate: numeric("JEV_INPUT_USD_PER_MILLION", 0.042, 100),
     maxUsd: numeric("AI_MAX_USD", LIMITS.maxUsd, LIMITS.maxUsd),
   };
@@ -292,7 +307,7 @@ export async function callJev(body, cfg, fetcher = fetch) {
 }
 
 export async function review(context, cfg, fetcher = fetch) {
-  let result = emptyReport(context, "unavailable", "OpenAI project credential is not configured.");
+  let result = emptyReport(context, "unavailable", "GPT provider credential is not configured.");
   const serialized = JSON.stringify(context);
   if (!context.complete || Buffer.byteLength(serialized) > LIMITS.inputBytes)
     return {
@@ -300,7 +315,10 @@ export async function review(context, cfg, fetcher = fetch) {
       status: "incomplete",
       reason: "Input omitted, unsupported or over the bounded review scope; no provider called.",
     };
-  if (!cfg.openaiKey) return result;
+  if (!cfg.gptKey) return result;
+  // Validate the account before either provider can consume budget or receive data.
+  if (cfg.gptProvider === "cloudflare" && !/^[a-f0-9]{32}$/.test(cfg.gptAccount))
+    return { ...result, status: "failed", reason: "Invalid GPT Cloudflare account configuration." };
   const post = async (url, key, body) =>
     boundedJson(
       await fetcher(url, {
@@ -342,8 +360,8 @@ export async function review(context, cfg, fetcher = fetch) {
   const gptWorstBytes =
     Buffer.byteLength(serialized + PROMPT + JSON.stringify(OUTPUT_SCHEMA)) + 4096;
   const reservedUsd =
-    (gptWorstBytes * cfg.inputRate +
-      LIMITS.outputTokens * cfg.outputRate +
+    (gptWorstBytes * cfg.reserveInputRate +
+      LIMITS.outputTokens * cfg.reserveOutputRate +
       (cfg.jevEnabled ? (jevBytes + 2048) * cfg.jevRate : 0)) /
     1e6;
   if (reservedUsd > cfg.maxUsd)
@@ -384,8 +402,12 @@ export async function review(context, cfg, fetcher = fetch) {
   const start = performance.now();
   result.gpt = metadata("failed", cfg.gptModel);
   try {
-    const raw = await post("https://api.openai.com/v1/responses", cfg.openaiKey, {
-      model: cfg.gptModel,
+    const cloudflare = cfg.gptProvider === "cloudflare";
+    const endpoint = cloudflare
+      ? "https://api.cloudflare.com/client/v4/accounts/" + cfg.gptAccount + "/ai/v1/responses"
+      : "https://api.openai.com/v1/responses";
+    const raw = await post(endpoint, cfg.gptKey, {
+      model: cloudflare ? "openai/" + cfg.gptModel : cfg.gptModel,
       store: false,
       tools: [],
       max_output_tokens: LIMITS.outputTokens,
@@ -404,6 +426,8 @@ export async function review(context, cfg, fetcher = fetch) {
         format: { type: "json_schema", name: "slice_review", strict: true, schema: OUTPUT_SCHEMA },
       },
     });
+    if (raw.model !== cfg.gptModel && !(cloudflare && raw.model === "openai/" + cfg.gptModel))
+      throw new Error("Unexpected GPT model; no fallback is permitted");
     const accounting = usage(raw.usage, cfg.inputRate, cfg.outputRate);
     result.gpt = {
       ...metadata(raw.status === "completed" ? "completed" : "incomplete", text(raw.model, 100)),
